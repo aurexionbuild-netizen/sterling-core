@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>S.T.E.R.L.I.N.G. Universal Interface</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background-color: #05070a;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            color: #ffffff;
+            padding: 20px;
+        }
+
+        /* 🖥️ UNIVERSAL FLEX CONTAINER (Scales perfectly across monitors & mobile screens) */
+        .matrix-viewport {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            max-width: 800px;
+            height: auto;
+        }
+
+        /* Dynamic Orb Scaler using Viewport Units */
+        .orb-container {
+            position: relative;
+            width: 45vmin;
+            height: 45vmin;
+            min-width: 220px;
+            min-height: 220px;
+            max-width: 400px;
+            max-height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+        
+        .orb-container:active {
+            transform: scale(0.98);
+        }
+
+        /* Ambient Back-Glow Layer */
+        .orb-glow {
+            position: absolute;
+            width: 60%;
+            height: 60%;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(0,212,255,0.35) 0%, rgba(0,0,0,0) 70%);
+            filter: blur(15px);
+            transition: all 0.3s ease;
+            z-index: 1;
+        }
+
+        canvas {
+            position: absolute;
+            width: 100% !important;
+            height: 100% !important;
+            z-index: 2;
+        }
+
+        /* System Status Text (Scales relative to screen scale) */
+        .status-text {
+            margin-top: 5vh;
+            font-size: calc(0.6rem + 0.6vmin);
+            letter-spacing: 0.25em;
+            text-transform: uppercase;
+            color: #516d82;
+            font-weight: 600;
+            text-align: center;
+            transition: color 0.3s ease, text-shadow 0.3s ease;
+            user-select: none;
+        }
+
+        .active-listening { 
+            color: #00d4ff; 
+            text-shadow: 0 0 12px rgba(0,212,255,0.6); 
+        }
+    </style>
+</head>
+<body>
+
+    <div class="matrix-viewport">
+        <div class="orb-container" id="trigger-zone">
+            <div class="orb-glow" id="glow-matrix"></div>
+            <canvas id="voice-orb" width="400" height="400"></canvas>
+        </div>
+        <div class="status-text" id="system-status">S.T.E.R.L.I.N.G. : IDLE</div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('voice-orb');
+        const ctx = canvas.getContext('2d');
+        const systemStatus = document.getElementById('system-status');
+        const glowMatrix = document.getElementById('glow-matrix');
+        const triggerZone = document.getElementById('trigger-zone');
+
+        let isListening = false;
+        let animationFrameId;
+        let audioContext, analyser, dataArray;
+        
+        // Base radius changes context based on render grid sizing
+        let baseRadius = 80; 
+        let pulseMultiplier = 0;
+
+        function drawOrb(time) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            
+            if (isListening && analyser) {
+                analyser.getByteFrequencyData(dataArray);
+                let sum = 0;
+                for(let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+                pulseMultiplier = (sum / dataArray.length) * 0.8;
+            } else {
+                pulseMultiplier = Math.sin(time * 0.003) * 5; 
+            }
+
+            let currentRadius = baseRadius + pulseMultiplier;
+
+            // Draw outermost ring
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, currentRadius + 25, 0, Math.PI * 2);
+            ctx.strokeStyle = isListening ? 'rgba(0, 212, 255, 0.15)' : 'rgba(81, 109, 130, 0.1)';
+            ctx.lineWidth = 1.5;
+            ctx.stroke();
+
+            // Draw core energy ring
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, currentRadius, 0, Math.PI * 2);
+            ctx.strokeStyle = isListening ? 'rgba(0, 212, 255, 0.85)' : 'rgba(81, 109, 130, 0.45)';
+            ctx.lineWidth = 4;
+            ctx.shadowBlur = isListening ? 20 : 0;
+            ctx.shadowColor = '#00d4ff';
+            ctx.stroke();
+            ctx.shadowBlur = 0; 
+
+            animationFrameId = requestAnimationFrame(drawOrb);
+        }
+
+        async function toggleVoiceCapture() {
+            if (!isListening) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const source = audioContext.createMediaStreamSource(stream);
+                    analyser = audioContext.createAnalyser();
+                    analyser.fftSize = 64;
+                    source.connect(analyser);
+                    dataArray = new Uint8Array(analyser.frequencyBinCount);
+                    
+                    isListening = true;
+                    systemStatus.innerText = "S.T.E.R.L.I.N.G. : LISTENING";
+                    systemStatus.classList.add('active-listening');
+                    startSpeechRecognition();
+                } catch (err) {
+                    alert("Microphone connectivity permission denied.");
+                }
+            } else {
+                stopListeningState();
+            }
+        }
+
+        function stopListeningState() {
+            isListening = false;
+            systemStatus.innerText = "S.T.E.R.L.I.N.G. : IDLE";
+            systemStatus.classList.remove('active-listening');
+            if(audioContext) audioContext.close();
+        }
+
+        function startSpeechRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) return;
+
+            const recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.lang = 'en-US';
+
+            recognition.onresult = async (event) => {
+                const speechResult = event.results[0][0].transcript;
+                systemStatus.innerText = "PROCESSING DIRECTIVE...";
+                
+                try {
+                    await fetch('https://onrender.com', {
+                        method: 'POST',
+                        headers: {
+                            'X-Sterling-Auth': 'omwony213',
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            source: window.innerWidth < 768 ? "VOICE_ORB_MOBILE" : "VOICE_ORB_DESKTOP",
+                            data_payload: { "raw_spoken_intent": speechResult }
+                        })
+                    });
+                    systemStatus.innerText = "DIRECTIVE ROUTED";
+                } catch (e) {
+                    systemStatus.innerText = "MATRIX CONNECTION ERROR";
+                }
+                setTimeout(stopListeningState, 2000);
+            };
+
+            recognition.onerror = () => { stopListeningState(); };
+            recognition.onend = () => { if(isListening) recognition.start(); };
+            recognition.start();
+        }
+
+        triggerZone.addEventListener('click', toggleVoiceCapture);
+        animationFrameId = requestAnimationFrame(drawOrb);
+    </script>
+</body>
+</html>
