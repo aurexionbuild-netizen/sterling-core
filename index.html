@@ -20,7 +20,6 @@
             padding: 20px;
         }
 
-        /* 🖥️ UNIVERSAL FLEX CONTAINER (Scales perfectly across monitors & mobile screens) */
         .matrix-viewport {
             display: flex;
             flex-direction: column;
@@ -31,7 +30,6 @@
             height: auto;
         }
 
-        /* Dynamic Orb Scaler using Viewport Units */
         .orb-container {
             position: relative;
             width: 45vmin;
@@ -51,7 +49,6 @@
             transform: scale(0.98);
         }
 
-        /* Ambient Back-Glow Layer */
         .orb-glow {
             position: absolute;
             width: 60%;
@@ -70,7 +67,6 @@
             z-index: 2;
         }
 
-        /* System Status Text (Scales relative to screen scale) */
         .status-text {
             margin-top: 5vh;
             font-size: calc(0.6rem + 0.6vmin);
@@ -107,12 +103,37 @@
         const triggerZone = document.getElementById('trigger-zone');
 
         let isListening = false;
+        let isSpeaking = false;
         let animationFrameId;
         let audioContext, analyser, dataArray;
         
-        // Base radius changes context based on render grid sizing
         let baseRadius = 80; 
         let pulseMultiplier = 0;
+
+        // 🔊 UNIVERSAL AUDIO UTTERANCE SYSTEM
+        function speakResponse(textToSay) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                
+                const utterance = new SpeechSynthesisUtterance(textToSay);
+                utterance.lang = 'en-US';
+                utterance.rate = 1.05; 
+                utterance.pitch = 0.95; 
+
+                utterance.onstart = () => {
+                    isSpeaking = true;
+                    systemStatus.innerText = "S.T.E.R.L.I.N.G. : SPEAKING";
+                    systemStatus.classList.add('active-listening');
+                };
+
+                utterance.onend = () => {
+                    isSpeaking = false;
+                    stopListeningState();
+                };
+
+                window.speechSynthesis.speak(utterance);
+            }
+        }
 
         function drawOrb(time) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -124,25 +145,25 @@
                 let sum = 0;
                 for(let i = 0; i < dataArray.length; i++) sum += dataArray[i];
                 pulseMultiplier = (sum / dataArray.length) * 0.8;
+            } else if (isSpeaking) {
+                pulseMultiplier = 15 + Math.sin(time * 0.02) * 8;
             } else {
                 pulseMultiplier = Math.sin(time * 0.003) * 5; 
             }
 
             let currentRadius = baseRadius + pulseMultiplier;
 
-            // Draw outermost ring
             ctx.beginPath();
             ctx.arc(centerX, centerY, currentRadius + 25, 0, Math.PI * 2);
-            ctx.strokeStyle = isListening ? 'rgba(0, 212, 255, 0.15)' : 'rgba(81, 109, 130, 0.1)';
+            ctx.strokeStyle = (isListening || isSpeaking) ? 'rgba(0, 212, 255, 0.15)' : 'rgba(81, 109, 130, 0.1)';
             ctx.lineWidth = 1.5;
             ctx.stroke();
 
-            // Draw core energy ring
             ctx.beginPath();
             ctx.arc(centerX, centerY, currentRadius, 0, Math.PI * 2);
-            ctx.strokeStyle = isListening ? 'rgba(0, 212, 255, 0.85)' : 'rgba(81, 109, 130, 0.45)';
+            ctx.strokeStyle = (isListening || isSpeaking) ? 'rgba(0, 212, 255, 0.85)' : 'rgba(81, 109, 130, 0.45)';
             ctx.lineWidth = 4;
-            ctx.shadowBlur = isListening ? 20 : 0;
+            ctx.shadowBlur = (isListening || isSpeaking) ? 20 : 0;
             ctx.shadowColor = '#00d4ff';
             ctx.stroke();
             ctx.shadowBlur = 0; 
@@ -151,6 +172,13 @@
         }
 
         async function toggleVoiceCapture() {
+            if (isSpeaking) {
+                window.speechSynthesis.cancel();
+                isSpeaking = false;
+                stopListeningState();
+                return;
+            }
+
             if (!isListening) {
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -175,8 +203,10 @@
 
         function stopListeningState() {
             isListening = false;
-            systemStatus.innerText = "S.T.E.R.L.I.N.G. : IDLE";
-            systemStatus.classList.remove('active-listening');
+            if (!isSpeaking) {
+                systemStatus.innerText = "S.T.E.R.L.I.N.G. : IDLE";
+                systemStatus.classList.remove('active-listening');
+            }
             if(audioContext) audioContext.close();
         }
 
@@ -189,11 +219,12 @@
             recognition.lang = 'en-US';
 
             recognition.onresult = async (event) => {
-                const speechResult = event.results[0][0].transcript;
+                const speechResult = event.results.transcript;
                 systemStatus.innerText = "PROCESSING DIRECTIVE...";
                 
                 try {
-                    await fetch('https://onrender.com', {
+                    // 🔒 SECURITY UPDATE: Shifted to a relative path execution to destroy browser matrix errors
+                    const response = await fetch('/api/v1/matrix/ceo-stream', {
                         method: 'POST',
                         headers: {
                             'X-Sterling-Auth': 'omwony213',
@@ -204,11 +235,19 @@
                             data_payload: { "raw_spoken_intent": speechResult }
                         })
                     });
-                    systemStatus.innerText = "DIRECTIVE ROUTED";
+                    
+                    if (response.ok) {
+                        systemStatus.innerText = "DIRECTIVE ROUTED";
+                        speakResponse("Directive routed successfully, Sir.");
+                    } else {
+                        systemStatus.innerText = "AUTHENTICATION ERROR";
+                        speakResponse("Access denied. Security configuration mismatch.");
+                    }
                 } catch (e) {
+                    // 🗣️ AUDIO RECOVERY: Sterling speaks out loud when connection exceptions hit
                     systemStatus.innerText = "MATRIX CONNECTION ERROR";
+                    speakResponse("Matrix connection error. Please verify your stratosphere deployment status.");
                 }
-                setTimeout(stopListeningState, 2000);
             };
 
             recognition.onerror = () => { stopListeningState(); };
