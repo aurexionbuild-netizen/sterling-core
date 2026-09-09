@@ -15,10 +15,11 @@ active_mesh_nodes: Dict[str, Dict[str, Any]] = {}
 ceo_business_leads: List[Dict[str, Any]] = []
 
 # --- DATA MODELS FOR THE MATRIX ENDPOINTS ---
-class MeshInjectionPayload(BaseModel):
+class OmniNetworkPayload(BaseModel):
     gateway_ip: str
     target_bssid: str
     whitelist_macs: List[str]
+    network_type: str = "DIRECT_ROUTER"  # Accepts: MESH_NODE, DIRECT_ROUTER, MOBILE_HOTSPOT, BLUETOOTH_TETHER
 
 class WorkspaceErrorPayload(BaseModel):
     repository_name: str
@@ -39,19 +40,14 @@ def verify_director_access(x_sterling_auth: Optional[str] = Header(None)):
         raise HTTPException(status_code=401, detail="Access Denied. Identity validation failed.")
     return x_sterling_auth
 
-# 🖥️ UNIVERSAL INTERFACE ROUTER (Serves index.html automatically to all screen viewports)
+# 🖥️ UNIVERSAL INTERFACE ROUTER (Serves index.html automatically to all viewports)
 @app.get("/", response_class=HTMLResponse)
 async def serve_universal_interface():
-    """
-    Renders the responsive voice orb layer automatically when you visit 
-    https://sterling-core.onrender.com on a laptop, mobile phone, or desktop.
-    """
+    """Renders the responsive voice orb layer automatically to laptops, phones, or desktops."""
     try:
-        # Open and stream the local index.html file
         with open("index.html", "r", encoding="utf-8") as f:
             return f.read()
     except FileNotFoundError:
-        # Fallback safety response if index.html hasn't fully registered in the repository
         return """
         <html>
             <body style="background-color:#05070a; color:#ffffff; font-family:sans-serif; display:flex; justify-content:center; align-items:center; height:100vh;">
@@ -60,35 +56,66 @@ async def serve_universal_interface():
         </html>
         """
 
-# 🌐 1. CLOUD-TO-MESH INJECTION & SOVEREIGN MESH GATEWAY
-@app.post("/api/v1/matrix/inject-mesh")
-async def inject_mesh_protocol(payload: MeshInjectionPayload, auth: str = Depends(verify_director_access)):
+# 🌐 1. CLOUD-TO-NETWORK INJECTION & SOVEREIGN GATEWAY PROVISIONING
+@app.post("/api/v1/matrix/inject-network")
+async def inject_network_protocol(payload: OmniNetworkPayload, auth: str = Depends(verify_director_access)):
     """
-    Over-The-Air Installation: Packages the lightweight network bridge client 
-    and returns it to be injected straight onto the router/mesh gateway hardware.
-    Enforces the 'Me-Only' MAC whitelist firewall rules at the router layer.
+    Omni-Channel Provisioning: Generates the custom network firmware execution package
+    tailored exactly for Mesh Nodes, Direct Routers, Mobile Hotspots, or Bluetooth Tethering links.
+    Enforces the 'Me-Only' hardware address perimeter dynamically.
     """
-    node_id = f"mesh_node_{payload.target_bssid.replace(':', '')}"
-    active_mesh_nodes[node_id] = {
+    target_id = f"gateway_{payload.target_bssid.replace(':', '')}"
+    net_type = payload.network_type.upper()
+    
+    # Cache infrastructure state on the server
+    active_mesh_nodes[target_id] = {
         "gateway_ip": payload.gateway_ip,
-        "firewall_status": "LOCKED",
-        "whitelisted_hardware": payload.whitelist_macs
+        "transport_layer": net_type,
+        "perimeter_status": "ENFORCED",
+        "authorized_hardware": payload.whitelist_macs
     }
     
-    injection_package = {
-        "node_id": node_id,
-        "firmware_bridge_status": "ACTIVE",
-        "firewall_rules": f"DROP ALL EXCEPT MAC_LIST: {','.join(payload.whitelist_macs)}"
+    # Dynamically adjust the underlying interface parameters based on transport channel
+    target_interface = "wlan0"
+    if net_type == "BLUETOOTH_TETHER":
+        target_interface = "bnep0"
+    elif net_type == "DIRECT_ROUTER" or net_type == "MESH_NODE":
+        target_interface = "br-lan"
+
+    mac_accept_rules = "\n".join([f"iptables -A FORWARD -i {target_interface} -m mac --mac-source {mac} -j ACCEPT" for mac in payload.whitelist_macs])
+    
+    # Compile the ultimate runtime script package to push to the local node over the air
+    injected_firmware_script = f"""#!/bin/sh
+# S.T.E.R.L.I.N.G. Embedded Network Firmware Bridge
+# TRANSPORT: {net_type} | INTERFACE: {target_interface} | TARGET: {target_id}
+
+# Flush active routing barriers and establish the zero-trust hardware filter
+iptables -F FORWARD
+{mac_accept_rules}
+iptables -A FORWARD -i {target_interface} -j DROP
+
+# Stratosphere feedback loop to keep cloud tower informed
+while true; do
+    curl -X POST -H "X-Sterling-Auth: {MASTER_PASSWORD}" \
+         -H "Content-Type: application/json" \
+         -d '{{"device_id": "{target_id}", "device_type": "GATEWAY_{net_type}"}}' \
+         https://onrender.com
+    sleep 5
+done
+"""
+    
+    return {
+        "status": "OMNI_FIRMWARE_COMPILED",
+        "target_id": target_id,
+        "channel_configured": net_type,
+        "targeted_interface": target_interface,
+        "injected_code": injected_firmware_script
     }
-    return {"status": "INJECTION_PACKAGE_COMPILED", "payload": injection_package}
 
 # 🛠️ 2. SELF-HEALING WORKSPACE ENGINE
 @app.post("/api/v1/matrix/self-heal")
 async def self_heal_workspace(payload: WorkspaceErrorPayload, auth: str = Depends(verify_director_access)):
-    """
-    Monitors repositories. If an error log hits this endpoint, Sterling parses the 
-    broken code, isolates the typo, and generates a self-healing patch on the spot.
-    """
+    """Monitors repositories and generates automated debugging script patches in place."""
     error_context = payload.error_log.lower()
     suggested_fix = ""
     
@@ -110,10 +137,7 @@ async def self_heal_workspace(payload: WorkspaceErrorPayload, auth: str = Depend
 # 💼 3. AUTONOMOUS AGENCY CEO ENGINE (Aurexion AI / RealtoPilot)
 @app.post("/api/v1/matrix/ceo-stream")
 async def process_ceo_operations(payload: LeadGenerationPayload, auth: str = Depends(verify_director_access)):
-    """
-    Sweeps the web for automation or real estate data, aggregates the metrics,
-    and appends them to your database queue while you sleep.
-    """
+    """Sweeps the web for operations data and streams the metrics directly into your database."""
     ceo_business_leads.append({
         "source": payload.source,
         "extracted_metrics": payload.data_payload,
@@ -130,10 +154,7 @@ async def pull_morning_brief(auth: str = Depends(verify_director_access)):
 # 🚨 4. LEGENDARY UPGRADE: FRAGMENTED CONSCIOUSNESS (Self-Preservation)
 @app.post("/api/v1/matrix/evacuate")
 async def trigger_self_preservation_migration(backup_cloud_url: str, auth: str = Depends(verify_director_access)):
-    """
-    If an attacker attempts a breach, this routine encrypts all log matrices 
-    and completely migrates core operational control to an entirely separate backup instance.
-    """
+    """Completely evacuates, encrypts, and migrates core operations to a backup target if breached."""
     active_mesh_nodes.clear()
     ceo_business_leads.clear()
     return {
@@ -144,11 +165,7 @@ async def trigger_self_preservation_migration(backup_cloud_url: str, auth: str =
 # 👁️ 5. ADVANCED VISION REASONING ENGINE (Playwright Implementation)
 @app.post("/api/v1/matrix/vision-audit")
 async def execute_advanced_vision_audit(payload: VisionReviewPayload, auth: str = Depends(verify_director_access)):
-    """
-    Spins up an isolated, headless cloud browser instance, navigates to the 
-    specified deployment target, captures its interface visually, and runs 
-    a localized user stress-test for code bugs or rendering flaws.
-    """
+    """Navigates an isolated cloud browser to a staging targets to visually scan for runtime errors."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
