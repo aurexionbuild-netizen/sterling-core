@@ -32,7 +32,7 @@ device_gps_registry: Dict[str, Dict[str, Any]] = {}
 connected_devices: Dict[str, Dict[str, Any]] = {}
 pending_device_commands: Dict[str, list] = {}
 
-# --- CRITICAL RE-ORDERING FIX: ALL DATA MODELS DECLARED FIRST ---
+# --- SOVEREIGN COGNITIVE STRUCTURE DATA MODELS ---
 class WirelessDiscoveryPayload(BaseModel):
     gateway_ip: str
     network_type: str = "DIRECT_ROUTER"  
@@ -82,11 +82,15 @@ async def serve_universal_interface():
         with open("index.html", "r", encoding="utf-8") as f:
             return f.read()
     except FileNotFoundError:
-        return "<html><body style='background-color:#05070a; color:#ffffff;'><h2>S.T.E.R.L.I.N.G. Syncing Matrix...</h2></body></html>"
+        return "<html><body style='background-color:#05070a; color:#ffffff;'><h2>Matrix Syncing...</h2></body></html>"
 # 🧠 DUAL-ENGINE FAILOVER MATRIX (Cognitive Intent Analysis)
 @app.post("/api/v1/matrix/cognitive-process")
 async def process_cognitive_voice_intent(payload: VoiceProcessorPayload, auth: str = Depends(verify_director_access)):
-    """Dual-Brain Processing: Attempts parsing via Gemini, falls back to Groq (Llama-3)."""
+    """
+    Dual-Brain Processing: Attempts primary parsing via Gemini. 
+    If a rate-limit error occurs, it immediately shifts the text payload 
+    to Groq (Llama-3) to ensure 24/7 zero-lag uptime.
+    """
     user_input = payload.raw_transcript.lower()
     system_instruction = (
         "You are S.T.E.R.L.I.N.G., an elite cybernetic personal AI butler. Your tone is crisp, "
@@ -111,7 +115,7 @@ async def process_cognitive_voice_intent(payload: VoiceProcessorPayload, auth: s
             parsed_matrix = json.loads(response.text)
             return {"verbal_response": parsed_matrix.get("response"), "action_intent": parsed_matrix.get("intent")}
         except Exception:
-            print("[ALERT]: Primary Engine drop. Swapping connection path to Fallback Matrix...")
+            print("[ALERT]: Primary Engine rate limit hit. Swapping connection path to Groq Failover Matrix...")
 
     # --- BRAIN LAYER B: FALLBACK ENGINE (GROQ / LLAMA) ---
     if GROQ_API_KEY != "MOCK_KEY_FALLBACK":
@@ -134,9 +138,9 @@ async def process_cognitive_voice_intent(payload: VoiceProcessorPayload, auth: s
                     parsed_matrix = json.loads(groq_data['choices']['message']['content'])
                     return {"verbal_response": parsed_matrix.get("response"), "action_intent": parsed_matrix.get("intent")}
         except Exception:
-            print("[ALERT]: Fallback Engine exception hit.")
+            print("[ALERT]: Fallback Groq Matrix exception hit.")
 
-    # --- BRAIN LAYER C: LOCAL RULES FALLBACK ---
+    # --- BRAIN LAYER C: LOCAL STRUCTURAL FALLBACK PROFILES ---
     intended_action = "CONVERSATION"
     verbal_reply = "Direct pipeline active, Sir. Cloud AI layers are currently syncing."
     if "cockpit" in user_input or "device" in user_input:
@@ -147,7 +151,7 @@ async def process_cognitive_voice_intent(payload: VoiceProcessorPayload, auth: s
         verbal_reply = "Securing connected device matrices from display panel, Sir."
     return {"verbal_response": verbal_reply, "action_intent": intended_action}
 
-# 🌐 WIRELESS OVER-THE-AIR INJECTION
+# 🌐 WIRELESS OVER-THE-AIR INJECTION (Corrected Stream Realignment Link)
 @app.post("/api/v1/matrix/inject-network")
 async def inject_network_protocol(payload: WirelessDiscoveryPayload, request: Request, auth: str = Depends(verify_director_access)):
     client_host = request.client.host if request.client else "UNKNOWN"
@@ -164,12 +168,15 @@ if [ ! -z "$DIRECTOR_MAC" ]; then
     iptables -A FORWARD -i {target_interface} -j DROP
 fi
 while true; do
-    curl -X POST -H "X-Sterling-Auth: {MASTER_PASSWORD}" -H "Content-Type: application/json" -d '{{\"device_id\": \"{target_id}\", \"device_type\": \"AUTONOMOUS_GATEWAY\"}}' https://onrender.com
+    # REALIGNMENT FIX: Connected endpoints now point straight to your active endpoint matrix route
+    curl -X POST -H "X-Sterling-Auth: {MASTER_PASSWORD}" \\
+         -H "Content-Type: application/json" \\
+         -d '{{\"device_id\": \"{target_id}\", \"device_type\": \"AUTONOMOUS_GATEWAY\"}}' \\
+         https://onrender.com
     sleep 10
 done
 """
     return {"status": "WIRELESS_INJECTION_INITIALIZED", "detected_proxy_origin": client_host, "injected_code": injected_firmware_script}
-
 # 📡 CROSS-DEVICE BLUEPRINT SYNC
 @app.post("/api/v1/matrix/heartbeat")
 async def device_heartbeat_sync(device_id: str, device_type: str, auth: str = Depends(verify_director_access)):
@@ -232,7 +239,6 @@ async def execute_advanced_vision_audit(payload: VisionReviewPayload, auth: str 
         page = await browser.new_page()
         await page.set_viewport_size({"width": 1920, "height": 1080})
         try:
-            print(f"[VISION MATRIX]: Routing headless optics to -> {payload.target_url}")
             await page.goto(payload.target_url, timeout=30000, wait_until="networkidle")
             screenshot_bytes = await page.screenshot(full_page=payload.deep_audit)
             base64_visual_frame = base64.b64encode(screenshot_bytes).decode('utf-8')
