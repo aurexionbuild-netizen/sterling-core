@@ -128,7 +128,7 @@
             <div class="orb-glow" id="glow-matrix"></div>
             <canvas id="voice-orb" width="400" height="400"></canvas>
         </div>
-        <div class="status-text" id="system-status">TAP ORB ONCE TO RUN CORE BRAIN LINK...</div>
+        <div class="status-text" id="system-status">INITIALIZING COGNITIVE INTERFACE LINKS...</div>
     </div>
 
     <div class="cockpit-panel" id="sovereign-cockpit-tray">
@@ -163,13 +163,14 @@
                 utterance.onstart = () => {
                     isSpeaking = true;
                     if(sentinelInstance) { try { sentinelInstance.abort(); } catch(e){} }
-                    systemStatus.innerText = "S.T.E.R.L.I.N.G. : SPEAKING";
+                    systemStatus.innerText = "S.T.E.R.L.I.N.G. : TRANSMITTING AUDIO";
                     systemStatus.className = "status-text active-listening";
                 };
                 utterance.onend = () => {
                     isSpeaking = false;
                     if (nextStepFunction) {
-                        nextStepFunction(); 
+                        // ⏱️ AUDIO BUFFER TIMING MOAT: Injects 350ms of dead air to eliminate speaker feedback
+                        setTimeout(nextStepFunction, 350);
                     } else {
                         resetToAmbientWakeState();
                     }
@@ -218,26 +219,22 @@
             animationFrameId = requestAnimationFrame(drawOrb);
         }
 
-        // 🔥 THE RE-IGNITION SENTINEL ENGINE
         function initializeWakeWordSentinel() {
             if (isListening || isSpeaking) return;
-            
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) return;
 
             sentinelInstance = new SpeechRecognition();
-            sentinelInstance.continuous = false; 
-            sentinelInstance.interimResults = false; 
-            sentinelInstance.lang = 'en-US';
+            sentinelInstance.continuous = false; sentinelInstance.interimResults = false; sentinelInstance.lang = 'en-US';
 
             sentinelInstance.onstart = () => {
                 wakeWordLoopActive = true;
-                systemStatus.innerText = "S.T.E.R.L.I.N.G. : STANDBY [SAY 'STERLING']";
+                systemStatus.innerText = "S.T.E.R.L.I.N.G. : VIGILANT [SAY 'STERLING']";
                 systemStatus.className = "status-text wake-word-ready";
             };
 
             sentinelInstance.onresult = (event) => {
-                const speechResult = event.results[event.results.length - 1][0].transcript.toLowerCase();
+                const speechResult = event.results[event.results.length - 1].transcript.toLowerCase();
                 if (speechResult.includes("sterling")) {
                     wakeWordLoopActive = false;
                     try { sentinelInstance.stop(); } catch(e){}
@@ -245,18 +242,14 @@
                 }
             };
 
-            // ⚡ THE AUTO-RESTART MOAT: Bypasses browser silence drops instantly
             sentinelInstance.onend = () => {
                 wakeWordLoopActive = false;
                 if (!isListening && !isSpeaking) {
-                    setTimeout(initializeWakeWordSentinel, 50); // Instant sub-millisecond restart line
+                    setTimeout(initializeWakeWordSentinel, 50); 
                 }
             };
 
-            sentinelInstance.onerror = () => {
-                try { sentinelInstance.abort(); } catch(e){}
-            };
-
+            sentinelInstance.onerror = () => { try { sentinelInstance.abort(); } catch(e){} };
             try { sentinelInstance.start(); } catch(e){}
         }
 
@@ -317,9 +310,8 @@
             initializeWakeWordSentinel();
         }
 
-        // FIRST-TIME USER TAP HANDSHAKE (Unlocks your microphone tracking permissions once)
         triggerZone.addEventListener('click', async () => {
-            if (audioContext) return; // Prevent double execution loops
+            if (audioContext) return; 
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -327,7 +319,7 @@
                 analyser = audioContext.createAnalyser(); analyser.fftSize = 64;
                 source.connect(analyser); dataArray = new Uint8Array(analyser.frequencyBinCount);
                 resetToAmbientWakeState();
-                            } catch(e) { alert("Optics micro-channel link authorization failed."); }
+            } catch(e) { alert("Optics link authorization failed."); }
         });
 
         animationFrameId = requestAnimationFrame(drawOrb);
@@ -335,4 +327,3 @@
     </script>
 </body>
 </html>
-
