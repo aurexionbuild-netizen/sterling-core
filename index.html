@@ -65,16 +65,26 @@
         .active-listening { color: #00d4ff; text-shadow: 0 0 12px rgba(0,212,255,0.6); }
         .wake-word-ready { color: #39ff14; text-shadow: 0 0 10px rgba(57,255,20,0.4); }
 
-        /* 🖥️ SOVEREIGN DEVICE COCKPIT PANEL */
+        /* 🖥️ SOVEREIGN DEVICE COCKPIT PANEL (Hidden by default, slides up dynamically) */
         .cockpit-panel {
             width: 100%;
             max-width: 900px;
-            background: rgba(10, 15, 22, 0.7);
+            background: rgba(10, 15, 22, 0.85);
             border: 1px solid rgba(81, 109, 130, 0.2);
             border-radius: 12px;
             padding: 15px;
-            margin-top: 20px;
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(15px);
+            position: fixed;
+            bottom: -200px; /* Locked completely out of sight below the screen viewport edge */
+            opacity: 0;
+            transition: bottom 0.4s cubic-bezier(0.1, 0.9, 0.2, 1), opacity 0.3s ease;
+            z-index: 10;
+            box-shadow: 0 -10px 30px rgba(0,0,0,0.5);
+        }
+        /* Visible deployment profile class triggered by voice commands */
+        .cockpit-panel.panel-deployed {
+            bottom: 20px;
+            opacity: 1;
         }
         .cockpit-header {
             font-size: 0.75rem;
@@ -119,10 +129,10 @@
             <div class="orb-glow" id="glow-matrix"></div>
             <canvas id="voice-orb" width="400" height="400"></canvas>
         </div>
-        <div class="status-text" id="system-status">WAKING NETWORK MATRIX...</div>
+        <div class="status-text" id="system-status">CLICK ORB TO ACTIVATE MICROPHONE DEFENSES...</div>
     </div>
 
-    <div class="cockpit-panel">
+    <div class="cockpit-panel" id="sovereign-cockpit-tray">
         <div class="cockpit-header">⚡ Sovereign Connected Matrix Devices</div>
         <div class="device-grid" id="device-display-grid">
             <div class="device-card"><div class="device-info">Cloud Tower<div class="device-type">Render Server</div></div><div class="indicator-pulse"></div></div>
@@ -135,6 +145,7 @@
         const glowMatrix = document.getElementById('glow-matrix');
         const triggerZone = document.getElementById('trigger-zone');
         const deviceGrid = document.getElementById('device-display-grid');
+        const cockpitTray = document.getElementById('sovereign-cockpit-tray');
 
         let isListening = false;
         let isSpeaking = false;
@@ -161,16 +172,13 @@
             }
         }
 
-        // 🎛️ COCKPIT MATRIX: FETCH CONNECTED SYSTEM DEVICES
         async function refreshConnectedDevicesCockpit() {
             try {
-                // Queries the base server heartbeat mapping registry to gather device nodes
                 const response = await fetch('/api/v1/matrix/heartbeat?device_id=ui_cockpit&device_type=PANEL', {
                     method: 'POST',
                     headers: { 'X-Sterling-Auth': 'omwony213' }
                 });
                 if (response.ok) {
-                    // Update display layout with mock / fetched server cache data dynamically
                     deviceGrid.innerHTML = `
                         <div class="device-card"><div class="device-info">Cloud Tower<div class="device-type">Render Server</div></div><div class="indicator-pulse"></div></div>
                         <div class="device-card"><div class="device-info">Director Platform<div class="device-type">Active UI Console</div></div><div class="indicator-pulse"></div></div>
@@ -190,7 +198,7 @@
             } else if (isSpeaking) {
                 pulseMultiplier = 15 + Math.sin(time * 0.02) * 8;
             } else if (wakeWordLoopActive) {
-                pulseMultiplier = Math.sin(time * 0.001) * 3; // Ultra-low-power sentinel pulse
+                pulseMultiplier = Math.sin(time * 0.001) * 3; 
             } else { pulseMultiplier = Math.sin(time * 0.003) * 5; }
 
             let currentRadius = baseRadius + pulseMultiplier;
@@ -204,7 +212,6 @@
             animationFrameId = requestAnimationFrame(drawOrb);
         }
 
-        // 🎙️ ALWAYS-LISTENING SENTINEL WAKE WORD ENGINE
         function initializeWakeWordSentinel() {
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) return;
@@ -215,22 +222,20 @@
             sentinel.onstart = () => {
                 wakeWordLoopActive = true;
                 if (!isListening && !isSpeaking) {
-                    systemStatus.innerText = "AWAITING WAKE COMMAND ['STERLING']...";
+                    systemStatus.innerText = "ALWAYS-LISTENING MODE LIVE. CALL OUT: 'STERLING'...";
                     systemStatus.className = "status-text wake-word-ready";
                 }
             };
 
             sentinel.onresult = (event) => {
                 const speechResult = event.results[0][0].transcript.toLowerCase();
-                // Check if the caller invoked your butler's signature wake word name
                 if (speechResult.includes("sterling")) {
                     wakeWordLoopActive = false;
-                    triggerVoiceCommandCapture(); // Transition straight into listening mode instantly
+                    triggerVoiceCommandCapture(); 
                 }
             };
 
             sentinel.onend = () => {
-                // Loops itself continuously in the background to ensure it stays vigilant
                 if (!isListening && !isSpeaking) sentinel.start();
             };
             sentinel.start();
@@ -248,7 +253,20 @@
 
                 recognition.onresult = async (event) => {
                     const speechResult = event.results[0][0].transcript.toLowerCase();
-                    systemStatus.innerText = "ROUTING COMPILATION DIRECTIVE...";
+                    systemStatus.innerText = "PROCESSING INTERFACE INTENT...";
+
+                    // 🖥️ COMMAND INTENT DETECTION: VOICE-TRIGGERED SLIDING COCKPIT TRAY
+                    if (speechResult.includes("cockpit") || speechResult.includes("connected") || speechResult.includes("devices")) {
+                        cockpitTray.classList.add('panel-deployed'); // Smoothly slide into view
+                        refreshConnectedDevicesCockpit();
+                        speakResponse("Initializing Sovereign Cockpit Matrix dashboard display, Sir.");
+                        return;
+                    }
+                    if (speechResult.includes("hide") || speechResult.includes("close") || speechResult.includes("clear cockpit")) {
+                        cockpitTray.classList.remove('panel-deployed'); // Smoothly hide away
+                        speakResponse("Securing connected device matrices from display panel, Sir.");
+                        return;
+                    }
 
                     if (speechResult.includes("police") || speechResult.includes("dispatch")) {
                         try {
@@ -259,7 +277,6 @@
                     }
 
                     try {
-                        // Forward dynamic code snippet actions straight down to target command processing queues
                         await fetch('/api/v1/matrix/execute-command', {
                             method: 'POST',
                             headers: { 'X-Sterling-Auth': 'omwony213', 'Content-Type': 'application/json' },
@@ -279,12 +296,11 @@
 
         function resetToAmbientWakeState() {
             isListening = false; isSpeaking = false;
-            systemStatus.innerText = "AWAITING WAKE COMMAND ['STERLING']...";
+            systemStatus.innerText = "ALWAYS-LISTENING MODE LIVE. CALL OUT: 'STERLING'...";
             systemStatus.className = "status-text wake-word-ready";
             initializeWakeWordSentinel();
         }
 
-        // Initialize mic stream metrics on click for visual canvas frequencies
         triggerZone.addEventListener('click', async () => {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -297,8 +313,7 @@
         });
 
         animationFrameId = requestAnimationFrame(drawOrb);
-        refreshConnectedDevicesCockpit();
-        setInterval(refreshConnectedDevicesCockpit, 15000); // Poll cockpit statuses every 15 seconds
+        setInterval(syncTelemetryCoordinates, 30000);
     </script>
 </body>
 </html>
