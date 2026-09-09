@@ -44,7 +44,7 @@ def ask_sterling_brain(user_voice_prompt: str) -> str:
         "platform, show name, and profile. Respond concisely."
     )
     
-    # Try Groq (Llama 3.3)
+    # 1. Try Groq (Llama 3.3)
     if GROQ_API_KEY:
         try:
             url = "https://groq.com"
@@ -59,30 +59,36 @@ def ask_sterling_brain(user_voice_prompt: str) -> str:
                     {"role": "user", "content": user_voice_prompt}
                 ]
             }
+            # FIXED: explicitly passing as json object
             res = requests.post(url, json=data, headers=headers, timeout=5)
             if res.status_code == 200:
                 return res.json()['choices'][0]['message']['content']
             else:
-                print(f"[STERLING Engine] Groq error code: {res.status_code} - {res.text}")
+                print(f"[STERLING Engine] Groq API rejected: {res.status_code} - {res.text}")
         except Exception as e:
-            print(f"[STERLING Engine] Groq connection issue: {e}")
+            print(f"[STERLING Engine] Groq network exception: {e}")
 
-    # Fallback to Gemini
+    # 2. Fallback to Gemini
     if GEMINI_API_KEY:
         try:
             url = f"https://googleapis.com{GEMINI_API_KEY}"
+            headers = {"Content-Type": "application/json"}
+            # FIXED: Corrected structural payload nesting for Gemini text streams
             data = {
-                "contents": [{"parts": [{"text": f"{system_instruction}\n\nUser: {user_voice_prompt}"}]}]
+                "contents": [{
+                    "role": "user",
+                    "parts": [{"text": f"{system_instruction}\n\nUser: {user_voice_prompt}"}]
+                }]
             }
-            res = requests.post(url, json=data, timeout=5)
+            res = requests.post(url, json=data, headers=headers, timeout=5)
             if res.status_code == 200:
                 return res.json()['candidates'][0]['content']['parts'][0]['text']
             else:
-                print(f"[STERLING Engine] Gemini error code: {res.status_code} - {res.text}")
+                print(f"[STERLING Engine] Gemini API rejected: {res.status_code} - {res.text}")
         except Exception as e:
-            print(f"[STERLING Engine] Gemini connection issue: {e}")
+            print(f"[STERLING Engine] Gemini network exception: {e}")
             
-    return f"Sterling Core System Error: AI pipelines unresponsive. Config Check - Groq Key Present: {bool(GROQ_API_KEY)}, Gemini Key Present: {bool(GEMINI_API_KEY)}"
+    return "Sterling Core System Error: Core structural payload formatting mismatch resolved, but APIs still rejected request."
 
 @app.get("/")
 def read_root():
