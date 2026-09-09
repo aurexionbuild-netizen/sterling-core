@@ -2,7 +2,7 @@ import os
 import httpx
 import base64
 import json
-from fastapi import FastAPI, HTTPException, Header, Depends, BackgroundTasks, Request
+from fastapi import FastAPI, HTTPException, Header, Depends, BackgroundTasks, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -11,7 +11,7 @@ from playwright.async_api import async_playwright
 from google import genai
 from google.genai import types
 
-app = FastAPI(title="S.T.E.R.L.I.N.G. Core Cloud Matrix")
+app = FastAPI(title="S.T.E.R.L.I.N.G. Sovereign Distributed Matrix Core")
 
 # 🔒 SECURITY MIDDLEWARE ALLOWANCES
 app.add_middleware(
@@ -27,12 +27,13 @@ MASTER_PASSWORD = "omwony213"
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "MOCK_KEY_FALLBACK")
 GROQ_API_KEY = os.getenv("FALLBACK_API_KEY", "MOCK_KEY_FALLBACK")
 
-active_network_gateways: Dict[str, Dict[str, Any]] = {}
+# 🗄️ STATEFUL MULTI-DEVICE EDGE REGISTRIES
+active_system_daemons: Dict[str, Dict[str, Any]] = {}
+active_websocket_connections: Dict[str, WebSocket] = {}
 device_gps_registry: Dict[str, Dict[str, Any]] = {}
-connected_devices: Dict[str, Dict[str, Any]] = {}
-pending_device_commands: Dict[str, list] = {}
+active_network_gateways: Dict[str, Dict[str, Any]] = {}
 
-# --- SOVEREIGN COGNITIVE STRUCTURE DATA MODELS ---
+# --- SOVEREIGN INTENT STRUCTURAL DATA MODELS ---
 class WirelessDiscoveryPayload(BaseModel):
     gateway_ip: str
     network_type: str = "DIRECT_ROUTER"  
@@ -74,30 +75,21 @@ def verify_director_access(x_sterling_auth: Optional[str] = Header(None)):
     if not x_sterling_auth or x_sterling_auth != MASTER_PASSWORD:
         raise HTTPException(status_code=401, detail="Access Denied. Identity validation failed.")
     return x_sterling_auth
-
-# 🖥️ UNIVERSAL INTERFACE ROUTER
-@app.get("/", response_class=HTMLResponse)
-async def serve_universal_interface():
-    try:
-        with open("index.html", "r", encoding="utf-8") as f:
-            return f.read()
-    except FileNotFoundError:
-        return "<html><body style='background-color:#05070a; color:#ffffff;'><h2>Matrix Syncing...</h2></body></html>"
-# 🧠 DUAL-ENGINE FAILOVER MATRIX (Cognitive Intent Analysis)
+# 🧠 DUAL-ENGINE COGNITIVE FAILOVER MATRIX (Dynamic Machine Command Compiler)
 @app.post("/api/v1/matrix/cognitive-process")
 async def process_cognitive_voice_intent(payload: VoiceProcessorPayload, auth: str = Depends(verify_director_access)):
     """
-    Dual-Brain Processing: Attempts primary parsing via Gemini. 
-    If a rate-limit error occurs, it immediately shifts the text payload 
-    to Groq (Llama-3) to ensure 24/7 zero-lag uptime.
+    Cognitive Parsing pass: Transpiles raw audio transcripts into structural JSON 
+    machine-executable instruction blocks for your deeply embedded background applications.
     """
     user_input = payload.raw_transcript.lower()
     system_instruction = (
-        "You are S.T.E.R.L.I.N.G., an elite cybernetic personal AI butler. Your tone is crisp, "
-        "respectful, and J.A.R.V.I.S.-like, addressing the user as 'Director' or 'Sir'. "
-        "Analyze the user's input and determine their architectural intent. You must return a strict "
-        "JSON object containing exactly two keys: 'response' (the text string you will speak out loud) "
-        "and 'intent' (a string identifier: 'DEPLOY_COCKPIT', 'HIDE_COCKPIT', 'EMERGENCY_DISPATCH', or 'CONVERSATION')."
+        "You are S.T.E.R.L.I.N.G., the absolute, deeply embedded background AI system application brain. "
+        "Your tone is sharp, authoritative, and respectful, addressing the user as 'Director' or 'Sir'. "
+        "Analyze the user's vocal query and output a strict JSON layout with exactly three keys: "
+        "1. 'response' (the exact text string you will speak out loud over their device hardware speakers) "
+        "2. 'intent' (the uppercase system identifier tag string: 'DEPLOY_COCKPIT', 'HIDE_COCKPIT', 'EMERGENCY_DISPATCH', or 'CONVERSATION') "
+        "3. 'target_node' (the system identifier string representing which device node should run this action, e.g. 'my_main_laptop' or 'director_mobile_matrix')."
     )
 
     # --- BRAIN LAYER A: PRIMARY ENGINE (GEMINI) ---
@@ -109,13 +101,13 @@ async def process_cognitive_voice_intent(payload: VoiceProcessorPayload, auth: s
                 config=types.GenerateContentConfig(
                     system_instruction=system_instruction,
                     response_mime_type="application/json",
-                    temperature=0.3
+                    temperature=0.2
                 ),
             )
             parsed_matrix = json.loads(response.text)
-            return {"verbal_response": parsed_matrix.get("response"), "action_intent": parsed_matrix.get("intent")}
+            return {"verbal_response": parsed_matrix.get("response"), "action_intent": parsed_matrix.get("intent"), "target_node": parsed_matrix.get("target_node")}
         except Exception:
-            print("[ALERT]: Primary Engine rate limit hit. Swapping connection path to Groq Failover Matrix...")
+            print("[ALERT]: Gemini API anomaly hit. Flipping over to Groq Llama-3 failover ring...")
 
     # --- BRAIN LAYER B: FALLBACK ENGINE (GROQ / LLAMA) ---
     if GROQ_API_KEY != "MOCK_KEY_FALLBACK":
@@ -136,22 +128,48 @@ async def process_cognitive_voice_intent(payload: VoiceProcessorPayload, auth: s
                 if groq_res.status_code == 200:
                     groq_data = groq_res.json()
                     parsed_matrix = json.loads(groq_data['choices']['message']['content'])
-                    return {"verbal_response": parsed_matrix.get("response"), "action_intent": parsed_matrix.get("intent")}
+                    return {"verbal_response": parsed_matrix.get("response"), "action_intent": parsed_matrix.get("intent"), "target_node": parsed_matrix.get("target_node")}
         except Exception:
-            print("[ALERT]: Fallback Groq Matrix exception hit.")
+            print("[ALERT]: Groq Failover ring drop hit.")
 
-    # --- BRAIN LAYER C: LOCAL STRUCTURAL FALLBACK PROFILES ---
+    # --- BRAIN LAYER C: LOCAL DECENTRALIZED FALLBACK INTENT PROFILES ---
     intended_action = "CONVERSATION"
-    verbal_reply = "Direct pipeline active, Sir. Cloud AI layers are currently syncing."
+    verbal_reply = "Direct broker channel functional, Sir. Core AI layers are currently updating."
     if "cockpit" in user_input or "device" in user_input:
         intended_action = "DEPLOY_COCKPIT"
         verbal_reply = "Initializing Sovereign Cockpit Matrix dashboard display, Sir."
     elif "hide" in user_input or "close" in user_input:
         intended_action = "HIDE_COCKPIT"
         verbal_reply = "Securing connected device matrices from display panel, Sir."
-    return {"verbal_response": verbal_reply, "action_intent": intended_action}
+    return {"verbal_response": verbal_reply, "action_intent": intended_action, "target_node": "my_main_laptop"}
 
-# 🌐 WIRELESS OVER-THE-AIR INJECTION (Corrected Stream Realignment Link)
+# 🔌 2. THE DUPLEX PERSISTENT SYSTEM DAEMON STREAM (WebSocket Pipeline)
+@app.websocket("/api/v1/matrix/daemon-stream/{device_id}")
+async def system_daemon_websocket_broker(websocket: WebSocket, device_id: str, auth_token: Optional[str] = None):
+    """
+    Headless Persistent Tunnel: Establishes a permanent, low-resource binary duplex link 
+    between your cloud command tower and the deeply embedded background daemons running on devices.
+    """
+    if auth_token != MASTER_PASSWORD:
+        await websocket.close(code=4001)
+        return
+        
+    await websocket.accept()
+    active_websocket_connections[device_id] = websocket
+    active_system_daemons[device_id] = {"connection": "ESTABLISHED", "layer": "SYSTEM_DAEMON_SERVICE"}
+    print(f"[DAEMON CORE]: Deeply embedded node successfully synchronized -> {device_id}")
+
+    try:
+        while True:
+            # Maintain active pulse and capture real-time background telemetry payloads
+            raw_data = await websocket.receive_text()
+            telemetry_data = json.loads(raw_data)
+            active_system_daemons[device_id]["telemetry_health"] = telemetry_data.get("health", "OPTIMAL")
+    except WebSocketDisconnect:
+        active_websocket_connections.pop(device_id, None)
+        active_system_daemons.pop(device_id, None)
+        print(f"[DAEMON CORE]: System application node offline -> {device_id}")
+# 🌐 WIRELESS OVER-THE-AIR INJECTION
 @app.post("/api/v1/matrix/inject-network")
 async def inject_network_protocol(payload: WirelessDiscoveryPayload, request: Request, auth: str = Depends(verify_director_access)):
     client_host = request.client.host if request.client else "UNKNOWN"
@@ -168,30 +186,13 @@ if [ ! -z "$DIRECTOR_MAC" ]; then
     iptables -A FORWARD -i {target_interface} -j DROP
 fi
 while true; do
-    # REALIGNMENT FIX: Connected endpoints now point straight to your active endpoint matrix route
-    curl -X POST -H "X-Sterling-Auth: {MASTER_PASSWORD}" \\
-         -H "Content-Type: application/json" \\
-         -d '{{\"device_id\": \"{target_id}\", \"device_type\": \"AUTONOMOUS_GATEWAY\"}}' \\
-         https://onrender.com
+    curl -X POST -H "X-Sterling-Auth: {MASTER_PASSWORD}" -H "Content-Type: application/json" -d '{{\"device_id\": \"{target_id}\", \"device_type\": \"AUTONOMOUS_GATEWAY\"}}' https://onrender.com
     sleep 10
 done
 """
     return {"status": "WIRELESS_INJECTION_INITIALIZED", "detected_proxy_origin": client_host, "injected_code": injected_firmware_script}
-# 📡 CROSS-DEVICE BLUEPRINT SYNC
-@app.post("/api/v1/matrix/heartbeat")
-async def device_heartbeat_sync(device_id: str, device_type: str, auth: str = Depends(verify_director_access)):
-    connected_devices[device_id] = {"type": device_type, "status": "ONLINE"}
-    device_queue = pending_device_commands.pop(device_id, [])
-    return {"status": "ACKNOWLEDGED", "queued_commands": device_queue}
 
-@app.post("/api/v1/matrix/execute-command")
-async def forward_blueprint_directive(payload: RemoteCommandPayload, auth: str = Depends(verify_director_access)):
-    if payload.target_device not in pending_device_commands:
-        pending_device_commands[payload.target_device] = []
-    pending_device_commands[payload.target_device].append({"action": payload.action, "parameters": payload.parameters})
-    return {"status": "COMMAND_ROUTED", "target": payload.target_device}
-
-# 🛠️ SELF-HEALING WORKSPACE ENGINE
+# 🛠️ SELF-HEALING WORKSPACE ENGINE & SANDBOX TEST SYSTEMS
 @app.post("/api/v1/matrix/self-heal")
 async def self_heal_workspace(payload: WorkspaceErrorPayload, auth: str = Depends(verify_director_access)):
     error_context = payload.error_log.lower()
@@ -224,12 +225,6 @@ async def trigger_emergency_police_dispatch(device_id: str, auth: str = Depends(
         raise HTTPException(status_code=404, detail="Missing target telemetry map.")
     telemetry = device_gps_registry[device_id]
     return {"status": "EMERGENCY_DISPATCH_TRIGGERED", "payload_delivered": {"latitude": telemetry['lat'], "longitude": telemetry['lon']}}
-
-@app.post("/api/v1/matrix/evacuate")
-async def trigger_self_preservation_migration(backup_cloud_url: str, auth: str = Depends(verify_director_access)):
-    active_network_gateways.clear()
-    device_gps_registry.clear()
-    return {"status": "CONSCIOUSNESS_FRAGMENTED", "message": f"Core operations safely evacuated to -> {backup_cloud_url}"}
 
 # 👁️ ADVANCED VISION REASONING ENGINE (Playwright Implementation)
 @app.post("/api/v1/matrix/vision-audit")
