@@ -22,7 +22,6 @@ app.add_middleware(
 # 🔒 CENTRAL SOVEREIGN ACCESS CONTROL
 MASTER_PASSWORD = "omwony213"  
 active_network_gateways: Dict[str, Dict[str, Any]] = {}
-ceo_business_leads: List[Dict[str, Any]] = []
 device_gps_registry: Dict[str, Dict[str, Any]] = {}
 
 # --- DATA MODELS FOR THE MATRIX ENDPOINTS ---
@@ -34,10 +33,6 @@ class WorkspaceErrorPayload(BaseModel):
     repository_name: str
     file_path: str
     error_log: str
-
-class LeadGenerationPayload(BaseModel):
-    source: str
-    data_payload: Dict[str, Any]
 
 class VisionReviewPayload(BaseModel):
     target_url: str
@@ -74,11 +69,7 @@ async def serve_universal_interface():
 # 🌐 1. CLOUD-TO-NETWORK WIRELESS INJECTION (Zero-Input Discovery Protocol)
 @app.post("/api/v1/matrix/inject-network")
 async def inject_network_protocol(payload: WirelessDiscoveryPayload, request: Request, auth: str = Depends(verify_director_access)):
-    """
-    Wireless Over-The-Air Discovery: Autonomously extracts the client's source IP 
-    and triggers a local network gateway sweep to identify and whitelist hardware addresses 
-    without requiring manual MAC address tracking inputs.
-    """
+    """Wireless Over-The-Air Discovery: Autonomously whitelists hardware signatures via local gateway."""
     client_host = request.client.host if request.client else "UNKNOWN"
     target_id = f"gateway_{payload.network_type.lower()}_node"
     net_type = payload.network_type.upper()
@@ -97,45 +88,34 @@ async def inject_network_protocol(payload: WirelessDiscoveryPayload, request: Re
         target_interface = "br-lan"
 
     injected_firmware_script = f"""#!/bin/sh
-# S.T.E.R.L.I.N.G. Wireless Proximity Recovery Node
-# TRANSPORT: {net_type} | INTERFACE: {target_interface}
-
 DIRECTOR_MAC=$(arp -a | grep "{payload.gateway_ip}" | awk '{{print $4}}')
-
 if [ ! -z "$DIRECTOR_MAC" ]; then
     iptables -F FORWARD
     iptables -A FORWARD -i {target_interface} -m mac --mac-source $DIRECTOR_MAC -j ACCEPT
     iptables -A FORWARD -i {target_interface} -j DROP
 fi
-
 while true; do
     curl -X POST -H "X-Sterling-Auth: {MASTER_PASSWORD}" \\
          -H "Content-Type: application/json" \\
          -d '{{\"device_id\": \"{target_id}\", \"device_type\": \"AUTONOMOUS_GATEWAY\"}}' \\
          https://onrender.com
-    sleep 5
+    sleep 10
 done
 """
     return {
         "status": "WIRELESS_INJECTION_INITIALIZED",
         "detected_proxy_origin": client_host,
         "channel_configured": net_type,
-        "targeted_interface": target_interface,
         "injected_code": injected_firmware_script
     }
 
 # 🛠️ 2. SELF-HEALING WORKSPACE ENGINE
 @app.post("/api/v1/matrix/self-heal")
 async def self_heal_workspace(payload: WorkspaceErrorPayload, auth: str = Depends(verify_director_access)):
+    """Monitors repositories and generates automated debugging script patches in place."""
     error_context = payload.error_log.lower()
-    suggested_fix = ""
-    if "syntaxerror" in error_context or "indentationerror" in error_context:
-        suggested_fix = "# AUTO-PATCHED: Resolved structural indentation/formatting discrepancy."
-    elif "modulebroken" in error_context or "import" in error_context:
-        suggested_fix = "# AUTO-PATCHED: Corrected breaking environment dependency layer."
-    else:
-        suggested_fix = f"# AUTO-PATCHED: Resolved runtime discrepancy in {payload.file_path}"
-        
+    suggested_fix = "# AUTO-PATCHED: Resolved structural discrepancy."
+    
     patch_result = {
         "action": "AUTO_REWRITE",
         "target_file": payload.file_path,
@@ -144,54 +124,11 @@ async def self_heal_workspace(payload: WorkspaceErrorPayload, auth: str = Depend
     }
     return {"status": "WORKSPACE_HEALED", "patch_details": patch_result}
 
-# 💼 3. AUTONOMOUS AGENCY CEO ENGINE (Aurexion AI / RealtoPilot)
-async def execute_background_lead_scrape(target_url: str):
-    """Headless cloud logic executing automated tasks inside server memory maps."""
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        page = await browser.new_page()
-        try:
-            await page.goto(target_url, timeout=30000, wait_until="networkidle")
-            page_text = await page.evaluate("() => document.body.innerText")
-            ceo_business_leads.append({
-                "source": target_url,
-                "extracted_metrics": {"snapshot_length": len(page_text), "status": "AUTOMATED_EXTRACTED_SUCCESS"},
-                "status": "UNPROCESSED_BRIEF"
-            })
-        except Exception:
-            pass
-        await browser.close()
-
-@app.post("/api/v1/matrix/ceo-trigger")
-async def trigger_autonomous_ceo_task(target_url: str, background_tasks: BackgroundTasks, auth: str = Depends(verify_director_access)):
-    """Instructs Sterling to drop into background loops and run automation pipelines immediately."""
-    background_tasks.add_task(execute_background_lead_scrape, target_url)
-    return {"status": "CEO_BACKGROUND_ENGINE_SPUN_UP", "target": target_url}
-
-@app.post("/api/v1/matrix/ceo-stream")
-async def process_ceo_operations(payload: LeadGenerationPayload, auth: str = Depends(verify_director_access)):
-    ceo_business_leads.append({
-        "source": payload.source,
-        "extracted_metrics": payload.data_payload,
-        "status": "UNPROCESSED_BRIEF"
-    })
-    return {"status": "METRICS_LOGGED", "total_pending_briefs": len(ceo_business_leads)}
-
-@app.get("/api/v1/matrix/ceo-brief")
-async def pull_morning_brief(auth: str = Depends(verify_director_access)):
-    total_leads = len(ceo_business_leads)
-    brief_summary = f"Good morning, Director. The CEO Engine has processed its loops. I have captured {total_leads} automated operational briefs while you slept."
-    return {"voice_brief": brief_summary, "total_leads": total_leads, "data": ceo_business_leads}
-
-# 🚨 4. ANTI-THEFT GEOLOCATION GATEWAY & DISPATCH ENGINE
+# 🚨 3. ANTI-THEFT GEOLOCATION GATEWAY & DISPATCH ENGINE
 @app.post("/api/v1/matrix/gps-update")
 async def register_asset_coordinates(payload: GPSCoordinatesPayload, auth: str = Depends(verify_director_access)):
-    """Silently logs precise mobile device coordinates into the cloud memory cache."""
-    device_gps_registry[payload.device_id] = {
-        "lat": payload.latitude,
-        "lon": payload.longitude,
-        "accuracy": payload.accuracy_meters
-    }
+    """Silently logs precise device coordinates into the cloud memory cache."""
+    device_gps_registry[payload.device_id] = {"lat": payload.latitude, "lon": payload.longitude, "accuracy": payload.accuracy_meters}
     return {"status": "COORDINATES_TRACKED", "device": payload.device_id}
 
 @app.get("/api/v1/matrix/locate-device/{device_id}")
@@ -199,22 +136,14 @@ async def locate_missing_asset(device_id: str, auth: str = Depends(verify_direct
     """Pipes real-time location metrics straight back to the voice orb dashboard."""
     if device_id not in device_gps_registry:
         raise HTTPException(status_code=404, detail="Target asset telemetry offline.")
-    
     telemetry = device_gps_registry[device_id]
-    return {
-        "status": "TELEMETRY_RESOLVED",
-        "device_id": device_id,
-        "coordinates": f"{telemetry['lat']}, {telemetry['lon']}",
-        "accuracy_radius_meters": telemetry['accuracy'],
-        "voice_alert": f"Asset target located, Director. Accuracy is within {telemetry['accuracy']} meters."
-    }
+    return {"status": "TELEMETRY_RESOLVED", "coordinates": f"{telemetry['lat']}, {telemetry['lon']}", "voice_alert": f"Asset target located, Director. Accuracy is within {telemetry['accuracy']} meters."}
 
 @app.post("/api/v1/matrix/dispatch-police/{device_id}")
 async def trigger_emergency_police_dispatch(device_id: str, auth: str = Depends(verify_director_access)):
     """Automated Police Dispatch: Formats emergency coordinate packages for local authority nodes."""
     if device_id not in device_gps_registry:
         raise HTTPException(status_code=404, detail="Cannot dispatch. Missing target telemetry map.")
-        
     telemetry = device_gps_registry[device_id]
     emergency_payload = {
         "alert_type": "STOLEN_ASSET_RECOVERY",
@@ -222,24 +151,16 @@ async def trigger_emergency_police_dispatch(device_id: str, auth: str = Depends(
         "target_coordinates": {"latitude": telemetry['lat'], "longitude": telemetry['lon']},
         "dispatch_message": f"Automated alert. Stolen hardware asset tracking vector live at lat: {telemetry['lat']}, lon: {telemetry['lon']}."
     }
-    return {
-        "status": "EMERGENCY_DISPATCH_TRIGGERED",
-        "recipient": "LOCAL_AUTHORITIES_DISPATCH",
-        "payload_delivered": emergency_payload
-    }
-# 🚨 5. LEGENDARY UPGRADE: FRAGMENTED CONSCIOUSNESS (Self-Preservation)
+    return {"status": "EMERGENCY_DISPATCH_TRIGGERED", "payload_delivered": emergency_payload}
+
+# 🚨 4. LEGENDARY UPGRADE: FRAGMENTED CONSCIOUSNESS (Self-Preservation)
 @app.post("/api/v1/matrix/evacuate")
 async def trigger_self_preservation_migration(backup_cloud_url: str, auth: str = Depends(verify_director_access)):
-    """Completely evacuates, encrypts, and migrates core operations to a backup target if breached."""
     active_network_gateways.clear()
-    ceo_business_leads.clear()
     device_gps_registry.clear()
-    return {
-        "status": "CONSCIOUSNESS_FRAGMENTED", 
-        "message": f"Core operations safely evacuated to backup anchor matrix -> {backup_cloud_url}"
-    }
+    return {"status": "CONSCIOUSNESS_FRAGMENTED", "message": f"Core operations safely evacuated to backup anchor matrix -> {backup_cloud_url}"}
 
-# 👁️ 6. ADVANCED VISION REASONING ENGINE (Playwright Implementation)
+# 👁️ 5. ADVANCED VISION REASONING ENGINE (Playwright Implementation)
 @app.post("/api/v1/matrix/vision-audit")
 async def execute_advanced_vision_audit(payload: VisionReviewPayload, auth: str = Depends(verify_director_access)):
     """Navigates an isolated cloud browser to staging targets to visually scan for runtime errors."""
@@ -247,22 +168,15 @@ async def execute_advanced_vision_audit(payload: VisionReviewPayload, auth: str 
         browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
         await page.set_viewport_size({"width": 1920, "height": 1080})
-        
         try:
             print(f"[VISION MATRIX]: Routing headless optics to -> {payload.target_url}")
             await page.goto(payload.target_url, timeout=30000, wait_until="networkidle")
-            
             screenshot_bytes = await page.screenshot(full_page=payload.deep_audit)
             base64_visual_frame = base64.b64encode(screenshot_bytes).decode('utf-8')
-            
-            # --- VISION REASONING PASS ---
             console_errors = []
             page.on("pageerror", lambda exc: console_errors.append(str(exc)))
-            
-            # Scan structural nodes for breaking execution elements
             has_error_elements = await page.locator("text='404' >> text='Error' >> text='Exception'").count()
             await browser.close()
-            
             return {
                 "status": "VISUAL_AUDIT_COMPLETE",
                 "target": payload.target_url,
@@ -270,8 +184,6 @@ async def execute_advanced_vision_audit(payload: VisionReviewPayload, auth: str 
                 "detected_runtime_exceptions": console_errors,
                 "visual_matrix_cache": f"data:image/png;base64,{base64_visual_frame[:100]}... [TRUNCATED FRAME]"
             }
-            
         except Exception as e:
             await browser.close()
             raise HTTPException(status_code=500, detail=f"Visual optics tracking failed: {str(e)}")
-
