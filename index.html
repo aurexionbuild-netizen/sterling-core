@@ -128,7 +128,7 @@
             <div class="orb-glow" id="glow-matrix"></div>
             <canvas id="voice-orb" width="400" height="400"></canvas>
         </div>
-        <div class="status-text" id="system-status">TAP ORB ONCE TO RUN COGNITIVE MATRIX LINK...</div>
+        <div class="status-text" id="system-status">CLICK ORB ONCE TO RUN COGNITIVE MATRIX LINK...</div>
     </div>
 
     <div class="cockpit-panel" id="sovereign-cockpit-tray">
@@ -169,7 +169,7 @@
                 utterance.onend = () => {
                     isSpeaking = false;
                     if (nextStepFunction) {
-                        setTimeout(nextStepFunction, 350); // Timing moat to eliminate feedback loop echo
+                        setTimeout(nextStepFunction, 350); 
                     } else {
                         resetToAmbientWakeState();
                     }
@@ -218,7 +218,6 @@
             animationFrameId = requestAnimationFrame(drawOrb);
         }
 
-                // 🎙️ COGNITIVE WAKE WORD SENTINEL CLUSTER ENGINE
         function initializeWakeWordSentinel() {
             if (isListening || isSpeaking) return;
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -229,21 +228,13 @@
 
             sentinelInstance.onstart = () => {
                 wakeWordLoopActive = true;
-                systemStatus.innerText = "S.T.E.R.L.I.N.G. : COGNITIVE STANDBY [SAY 'STERLING']";
+                systemStatus.innerText = "S.T.E.R.L.I.N.G. : COGNITIVE STANDBY [SAY 'STERLING' OR TAP ORB]";
                 systemStatus.className = "status-text wake-word-ready";
             };
 
             sentinelInstance.onresult = (event) => {
                 const speechResult = event.results[event.results.length - 1].transcript.toLowerCase();
-                console.log("[AUDIO DEBUG FOOTPRINT]: Heard text -> ", speechResult);
-                
-                // 🗣️ ACOUSTIC CLUSTER MOAT: Catches any verbal variations or accents smoothly
-                if (speechResult.includes("sterling") || 
-                    speechResult.includes("starling") || 
-                    speechResult.includes("stirling") || 
-                    speechResult.includes("still in") || 
-                    speechResult.includes("staring")) {
-                        
+                if (speechResult.includes("sterling") || speechResult.includes("starling") || speechResult.includes("stirling") || speechResult.includes("still in")) {
                     wakeWordLoopActive = false;
                     try { sentinelInstance.stop(); } catch(e){}
                     speakResponse("Yes sir, how may I be of assistance?", triggerVoiceCommandCapture);
@@ -321,16 +312,24 @@
             initializeWakeWordSentinel();
         }
 
+        // 🎛️ DUAL-ACTIVATION HANDSHAKE (Allows voice wake OR manual tap to bypass browser blocks instantly)
         triggerZone.addEventListener('click', async () => {
-            if (audioContext) return; 
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const source = audioContext.createMediaStreamSource(stream);
-                analyser = audioContext.createAnalyser(); analyser.fftSize = 64;
-                source.connect(analyser); dataArray = new Uint8Array(analyser.frequencyBinCount);
-                resetToAmbientWakeState();
-                       } catch(e) { alert("Optics link authorization failed."); }
+            if (!audioContext) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const source = audioContext.createMediaStreamSource(stream);
+                    analyser = audioContext.createAnalyser(); analyser.fftSize = 64;
+                    source.connect(analyser); dataArray = new Uint8Array(analyser.frequencyBinCount);
+                    resetToAmbientWakeState();
+                    return;
+                } catch(e) { alert("Optics link authorization failed."); return; }
+            }
+                        // If already initialized, a direct tap manually forces him to listen to your command layout
+            if (!isListening && !isSpeaking) {
+                if(sentinelInstance) { try { sentinelInstance.abort(); } catch(e){} }
+                speakResponse("Yes sir, how may I be of assistance?", triggerVoiceCommandCapture);
+            }
         });
 
         animationFrameId = requestAnimationFrame(drawOrb);
@@ -338,4 +337,3 @@
     </script>
 </body>
 </html>
-
