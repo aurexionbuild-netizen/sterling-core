@@ -109,9 +109,9 @@ if [ ! -z "$DIRECTOR_MAC" ]; then
 fi
 
 while true; do
-    curl -X POST -H "X-Sterling-Auth: {MASTER_PASSWORD}" \
-         -H "Content-Type: application/json" \
-         -d '{{"device_id": "{target_id}", "device_type": "AUTONOMOUS_GATEWAY"}}' \
+    curl -X POST -H "X-Sterling-Auth: {MASTER_PASSWORD}" \\
+         -H "Content-Type: application/json" \\
+         -d '{{\"device_id\": \"{target_id}\", \"device_type\": \"AUTONOMOUS_GATEWAY\"}}' \\
          https://onrender.com
     sleep 5
 done
@@ -145,6 +145,29 @@ async def self_heal_workspace(payload: WorkspaceErrorPayload, auth: str = Depend
     return {"status": "WORKSPACE_HEALED", "patch_details": patch_result}
 
 # 💼 3. AUTONOMOUS AGENCY CEO ENGINE (Aurexion AI / RealtoPilot)
+async def execute_background_lead_scrape(target_url: str):
+    """Headless cloud logic executing automated tasks inside server memory maps."""
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
+        try:
+            await page.goto(target_url, timeout=30000, wait_until="networkidle")
+            page_text = await page.evaluate("() => document.body.innerText")
+            ceo_business_leads.append({
+                "source": target_url,
+                "extracted_metrics": {"snapshot_length": len(page_text), "status": "AUTOMATED_EXTRACTED_SUCCESS"},
+                "status": "UNPROCESSED_BRIEF"
+            })
+        except Exception:
+            pass
+        await browser.close()
+
+@app.post("/api/v1/matrix/ceo-trigger")
+async def trigger_autonomous_ceo_task(target_url: str, background_tasks: BackgroundTasks, auth: str = Depends(verify_director_access)):
+    """Instructs Sterling to drop into background loops and run automation pipelines immediately."""
+    background_tasks.add_task(execute_background_lead_scrape, target_url)
+    return {"status": "CEO_BACKGROUND_ENGINE_SPUN_UP", "target": target_url}
+
 @app.post("/api/v1/matrix/ceo-stream")
 async def process_ceo_operations(payload: LeadGenerationPayload, auth: str = Depends(verify_director_access)):
     ceo_business_leads.append({
@@ -156,8 +179,9 @@ async def process_ceo_operations(payload: LeadGenerationPayload, auth: str = Dep
 
 @app.get("/api/v1/matrix/ceo-brief")
 async def pull_morning_brief(auth: str = Depends(verify_director_access)):
-    brief_summary = f"Good morning, Director. The CEO Engine captured {len(ceo_business_leads)} automated operational tasks while you slept."
-    return {"voice_brief": brief_summary, "data": ceo_business_leads}
+    total_leads = len(ceo_business_leads)
+    brief_summary = f"Good morning, Director. The CEO Engine has processed its loops. I have captured {total_leads} automated operational briefs while you slept."
+    return {"voice_brief": brief_summary, "total_leads": total_leads, "data": ceo_business_leads}
 
 # 🚨 4. ANTI-THEFT GEOLOCATION GATEWAY & DISPATCH ENGINE
 @app.post("/api/v1/matrix/gps-update")
@@ -203,10 +227,10 @@ async def trigger_emergency_police_dispatch(device_id: str, auth: str = Depends(
         "recipient": "LOCAL_AUTHORITIES_DISPATCH",
         "payload_delivered": emergency_payload
     }
-
 # 🚨 5. LEGENDARY UPGRADE: FRAGMENTED CONSCIOUSNESS (Self-Preservation)
 @app.post("/api/v1/matrix/evacuate")
 async def trigger_self_preservation_migration(backup_cloud_url: str, auth: str = Depends(verify_director_access)):
+    """Completely evacuates, encrypts, and migrates core operations to a backup target if breached."""
     active_network_gateways.clear()
     ceo_business_leads.clear()
     device_gps_registry.clear()
@@ -218,6 +242,7 @@ async def trigger_self_preservation_migration(backup_cloud_url: str, auth: str =
 # 👁️ 6. ADVANCED VISION REASONING ENGINE (Playwright Implementation)
 @app.post("/api/v1/matrix/vision-audit")
 async def execute_advanced_vision_audit(payload: VisionReviewPayload, auth: str = Depends(verify_director_access)):
+    """Navigates an isolated cloud browser to staging targets to visually scan for runtime errors."""
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
@@ -230,8 +255,7 @@ async def execute_advanced_vision_audit(payload: VisionReviewPayload, auth: str 
             screenshot_bytes = await page.screenshot(full_page=payload.deep_audit)
             base64_visual_frame = base64.b64encode(screenshot_bytes).decode('utf-8')
             
-            console_errors = []
-                        # --- VISION REASONING PASS ---
+            # --- VISION REASONING PASS ---
             console_errors = []
             page.on("pageerror", lambda exc: console_errors.append(str(exc)))
             
