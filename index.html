@@ -128,7 +128,7 @@
             <div class="orb-glow" id="glow-matrix"></div>
             <canvas id="voice-orb" width="400" height="400"></canvas>
         </div>
-        <div class="status-text" id="system-status">TAP ORB ONCE TO AWAKEN SYSTEM CORES...</div>
+        <div class="status-text" id="system-status">TAP ORB ONCE TO RUN COGNITIVE MATRIX LINK...</div>
     </div>
 
     <div class="cockpit-panel" id="sovereign-cockpit-tray">
@@ -169,7 +169,7 @@
                 utterance.onend = () => {
                     isSpeaking = false;
                     if (nextStepFunction) {
-                        setTimeout(nextStepFunction, 350); // Timing moat to completely clear audio echo
+                        setTimeout(nextStepFunction, 350); // Timing moat to eliminate feedback loop echo
                     } else {
                         resetToAmbientWakeState();
                     }
@@ -218,20 +218,17 @@
             animationFrameId = requestAnimationFrame(drawOrb);
         }
 
-        // 🔥 THE ANTI-TIMEOUT SENTINEL AUTO-RESTART ENGINE
         function initializeWakeWordSentinel() {
             if (isListening || isSpeaking) return;
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) return;
 
             sentinelInstance = new SpeechRecognition();
-            sentinelInstance.continuous = false; 
-            sentinelInstance.interimResults = false; 
-            sentinelInstance.lang = 'en-US';
+            sentinelInstance.continuous = false; sentinelInstance.interimResults = false; sentinelInstance.lang = 'en-US';
 
             sentinelInstance.onstart = () => {
                 wakeWordLoopActive = true;
-                systemStatus.innerText = "S.T.E.R.L.I.N.G. : VIGILANT [SAY 'STERLING']";
+                systemStatus.innerText = "S.T.E.R.L.I.N.G. : COGNITIVE STANDBY [SAY 'STERLING']";
                 systemStatus.className = "status-text wake-word-ready";
             };
 
@@ -244,11 +241,10 @@
                 }
             };
 
-            // ⚡ THE IMMUNITY CROSS: Automatically re-fires the listener the instant it closes due to silence
             sentinelInstance.onend = () => {
                 wakeWordLoopActive = false;
                 if (!isListening && !isSpeaking) {
-                    setTimeout(initializeWakeWordSentinel, 50); // Forced sub-millisecond restart line
+                    setTimeout(initializeWakeWordSentinel, 50); 
                 }
             };
 
@@ -325,10 +321,12 @@
                 analyser = audioContext.createAnalyser(); analyser.fftSize = 64;
                 source.connect(analyser); dataArray = new Uint8Array(analyser.frequencyBinCount);
                 resetToAmbientWakeState();
-            } catch(e) { alert("Optics link authorization failed."); }
+                       } catch(e) { alert("Optics link authorization failed."); }
         });
+
         animationFrameId = requestAnimationFrame(drawOrb);
         setInterval(syncTelemetryCoordinates, 30000);
     </script>
 </body>
 </html>
+
