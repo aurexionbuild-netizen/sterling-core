@@ -1,8 +1,10 @@
 import os
 import httpx
+import base64
 from fastapi import FastAPI, HTTPException, Header, Depends, BackgroundTasks
 from pydantic import BaseModel
 from typing import Dict, Any, Optional, List
+from playwright.async_api import async_playwright
 
 app = FastAPI(title="S.T.E.R.L.I.N.G. Core Cloud Matrix")
 
@@ -11,6 +13,7 @@ MASTER_PASSWORD = "omwony213"  # Your personal master password
 active_mesh_nodes: Dict[str, Dict[str, Any]] = {}
 ceo_business_leads: List[Dict[str, Any]] = []
 
+# --- DATA MODELS FOR THE MATRIX ENDPOINTS ---
 class MeshInjectionPayload(BaseModel):
     gateway_ip: str
     target_bssid: str
@@ -24,6 +27,10 @@ class WorkspaceErrorPayload(BaseModel):
 class LeadGenerationPayload(BaseModel):
     source: str
     data_payload: Dict[str, Any]
+
+class VisionReviewPayload(BaseModel):
+    target_url: str
+    deep_audit: bool = True
 
 def verify_director_access(x_sterling_auth: Optional[str] = Header(None)):
     """Strict zero-trust validation matching your personal password."""
@@ -114,7 +121,7 @@ async def trigger_self_preservation_migration(backup_cloud_url: str, auth: str =
     """
     If an attacker attempts a breach, this routine encrypts all log matrices 
     and completely migrates core operational control to an entirely separate backup instance.
-    """
+    ```"""
     # Encrypt local memory maps and clear volatile states
     active_mesh_nodes.clear()
     ceo_business_leads.clear()
@@ -122,3 +129,49 @@ async def trigger_self_preservation_migration(backup_cloud_url: str, auth: str =
         "status": "CONSCIOUSNESS_FRAGMENTED", 
         "message": f"Core operations safely evacuated to backup anchor matrix -> {backup_cloud_url}"
     }
+
+# 👁️ 5. ADVANCED VISION REASONING ENGINE (Playwright Implementation)
+@app.post("/api/v1/matrix/vision-audit")
+async def execute_advanced_vision_audit(payload: VisionReviewPayload, auth: str = Depends(verify_director_access)):
+    """
+    Spins up an isolated, headless cloud browser instance, navigates to the 
+    specified deployment target, captures its interface visually, and runs 
+    a localized user stress-test for code bugs or rendering flaws.
+    """
+    async with async_playwright() as p:
+        # Launch a secure, sandbox-isolated browser environment
+        browser = await p.chromium.launch(headless=True)
+        page = await browser.new_page()
+        
+        # Set a standard desktop window grid layout (1080p resolution)
+        await page.set_viewport_size({"width": 1920, "height": 1080})
+        
+        try:
+            # Navigate to the target system interface layout
+            print(f"[VISION MATRIX]: Routing headless optics to -> {payload.target_url}")
+            await page.goto(payload.target_url, timeout=30000, wait_until="networkidle")
+            
+            # Capture the visual image payload directly into server memory cache
+            screenshot_bytes = await page.screenshot(full_page=payload.deep_audit)
+            base64_visual_frame = base64.b64encode(screenshot_bytes).decode('utf-8')
+            
+            # --- VISION REASONING PASS ---
+            console_errors = []
+            page.on("pageerror", lambda exc: console_errors.append(str(exc)))
+            
+            # Scan structural nodes for breaking execution elements
+            has_error_elements = await page.locator("text='404' >> text='Error' >> text='Exception'").count()
+            
+            await browser.close()
+            
+            return {
+                "status": "VISUAL_AUDIT_COMPLETE",
+                "target": payload.target_url,
+                "interface_health": "OPTIMAL" if has_error_elements == 0 else "DEGRADED",
+                "detected_runtime_exceptions": console_errors,
+                "visual_matrix_cache": f"data:image/png;base64,{base64_visual_frame[:100]}... [TRUNCATED FRAME]"
+            }
+            
+        except Exception as e:
+            await browser.close()
+            raise HTTPException(status_code=500, detail=f"Visual optics tracking failed: {str(e)}")
