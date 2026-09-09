@@ -46,7 +46,7 @@ def ask_sterling_brain(user_voice_prompt: str) -> str:
     
     diagnostic_info = {}
 
-    # 1. Try Groq (Llama 3 base model)
+    # 1. Try Groq (Production Model ID)
     if GROQ_API_KEY:
         try:
             clean_groq_key = str(GROQ_API_KEY).strip().replace('"', '').replace("'", "")
@@ -56,7 +56,7 @@ def ask_sterling_brain(user_voice_prompt: str) -> str:
                 "Content-Type": "application/json"
             }
             data = {
-                "model": "llama3-8b-8192",
+                "model": "llama-3.1-8b-instant",  # Standard production model ID
                 "messages": [
                     {"role": "system", "content": system_instruction},
                     {"role": "user", "content": user_voice_prompt}
@@ -70,31 +70,28 @@ def ask_sterling_brain(user_voice_prompt: str) -> str:
         except Exception as e:
             diagnostic_info["groq_exception"] = str(e)
 
-    # 2. Fallback to Gemini
+    # 2. Fallback to Gemini (Updated API URL Layout)
     if GEMINI_API_KEY:
         try:
             clean_gemini_key = str(GEMINI_API_KEY).strip().replace('"', '').replace("'", "")
-            # FIXED: URL is completely static now, key is passed safely as a separate query param dictionary
+            # FIXED: Updated URL pattern layout for Gemini models
             url = "https://googleapis.com"
             query_params = {"key": clean_gemini_key}
             headers = {"Content-Type": "application/json"}
             data = {
                 "contents": [{
-                    "parts": [{"text": user_voice_prompt}]
-                }],
-                "systemInstruction": {
-                    "parts": [{"text": system_instruction}]
-                }
+                    "parts": [{"text": f"{system_instruction}\n\nUser: {user_voice_prompt}"}]
+                }]
             }
             res = requests.post(url, json=data, params=query_params, headers=headers, timeout=5)
             if res.status_code == 200:
-                return res.json()['candidates']['content']['parts']['text']
+                return res.json()['candidates'][0]['content']['parts'][0]['text']
             else:
                 diagnostic_info["gemini_error"] = f"Status {res.status_code}: {res.text}"
         except Exception as e:
             diagnostic_info["gemini_exception"] = str(e)
             
-    return f"Diagnostics Phase 2 - Raw Pipeline Responses: {json.dumps(diagnostic_info)}"
+    return f"Diagnostics Phase 3 - Raw Pipeline Responses: {json.dumps(diagnostic_info)}"
 
 @app.get("/")
 def read_root():
