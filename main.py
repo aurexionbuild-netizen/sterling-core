@@ -2,6 +2,7 @@ import os
 import httpx
 import base64
 from fastapi import FastAPI, HTTPException, Header, Depends, BackgroundTasks
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import Dict, Any, Optional, List
 from playwright.async_api import async_playwright
@@ -38,14 +39,26 @@ def verify_director_access(x_sterling_auth: Optional[str] = Header(None)):
         raise HTTPException(status_code=401, detail="Access Denied. Identity validation failed.")
     return x_sterling_auth
 
-@app.get("/")
-def ambient_heartbeat():
-    """Keep-alive destination for cron-job.org to prevent cold-starts entirely."""
-    return {
-        "status": "VIGILANT",
-        "system_name": "S.T.E.R.L.I.N.G.",
-        "architecture": "Decentralized Network-Level AI Matrix"
-    }
+# 🖥️ UNIVERSAL INTERFACE ROUTER (Serves index.html automatically to all screen viewports)
+@app.get("/", response_class=HTMLResponse)
+async def serve_universal_interface():
+    """
+    Renders the responsive voice orb layer automatically when you visit 
+    https://sterling-core.onrender.com on a laptop, mobile phone, or desktop.
+    """
+    try:
+        # Open and stream the local index.html file
+        with open("index.html", "r", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        # Fallback safety response if index.html hasn't fully registered in the repository
+        return """
+        <html>
+            <body style="background-color:#05070a; color:#ffffff; font-family:sans-serif; display:flex; justify-content:center; align-items:center; height:100vh;">
+                <h2>S.T.E.R.L.I.N.G. Core Brain Matrix Online. Awaiting index.html compile sync...</h2>
+            </body>
+        </html>
+        """
 
 # 🌐 1. CLOUD-TO-MESH INJECTION & SOVEREIGN MESH GATEWAY
 @app.post("/api/v1/matrix/inject-mesh")
@@ -62,7 +75,6 @@ async def inject_mesh_protocol(payload: MeshInjectionPayload, auth: str = Depend
         "whitelisted_hardware": payload.whitelist_macs
     }
     
-    # Generate the custom network-level instructions to push to the local router access point
     injection_package = {
         "node_id": node_id,
         "firmware_bridge_status": "ACTIVE",
@@ -121,8 +133,7 @@ async def trigger_self_preservation_migration(backup_cloud_url: str, auth: str =
     """
     If an attacker attempts a breach, this routine encrypts all log matrices 
     and completely migrates core operational control to an entirely separate backup instance.
-    ```"""
-    # Encrypt local memory maps and clear volatile states
+    """
     active_mesh_nodes.clear()
     ceo_business_leads.clear()
     return {
@@ -139,29 +150,21 @@ async def execute_advanced_vision_audit(payload: VisionReviewPayload, auth: str 
     a localized user stress-test for code bugs or rendering flaws.
     """
     async with async_playwright() as p:
-        # Launch a secure, sandbox-isolated browser environment
         browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
-        
-        # Set a standard desktop window grid layout (1080p resolution)
         await page.set_viewport_size({"width": 1920, "height": 1080})
         
         try:
-            # Navigate to the target system interface layout
             print(f"[VISION MATRIX]: Routing headless optics to -> {payload.target_url}")
             await page.goto(payload.target_url, timeout=30000, wait_until="networkidle")
             
-            # Capture the visual image payload directly into server memory cache
             screenshot_bytes = await page.screenshot(full_page=payload.deep_audit)
             base64_visual_frame = base64.b64encode(screenshot_bytes).decode('utf-8')
             
-            # --- VISION REASONING PASS ---
             console_errors = []
             page.on("pageerror", lambda exc: console_errors.append(str(exc)))
             
-            # Scan structural nodes for breaking execution elements
             has_error_elements = await page.locator("text='404' >> text='Error' >> text='Exception'").count()
-            
             await browser.close()
             
             return {
