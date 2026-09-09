@@ -218,6 +218,7 @@
             animationFrameId = requestAnimationFrame(drawOrb);
         }
 
+                // 🎙️ COGNITIVE WAKE WORD SENTINEL CLUSTER ENGINE
         function initializeWakeWordSentinel() {
             if (isListening || isSpeaking) return;
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -234,7 +235,15 @@
 
             sentinelInstance.onresult = (event) => {
                 const speechResult = event.results[event.results.length - 1].transcript.toLowerCase();
-                if (speechResult.includes("sterling")) {
+                console.log("[AUDIO DEBUG FOOTPRINT]: Heard text -> ", speechResult);
+                
+                // 🗣️ ACOUSTIC CLUSTER MOAT: Catches any verbal variations or accents smoothly
+                if (speechResult.includes("sterling") || 
+                    speechResult.includes("starling") || 
+                    speechResult.includes("stirling") || 
+                    speechResult.includes("still in") || 
+                    speechResult.includes("staring")) {
+                        
                     wakeWordLoopActive = false;
                     try { sentinelInstance.stop(); } catch(e){}
                     speakResponse("Yes sir, how may I be of assistance?", triggerVoiceCommandCapture);
