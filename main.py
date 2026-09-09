@@ -3,14 +3,24 @@ import httpx
 import base64
 from fastapi import FastAPI, HTTPException, Header, Depends, BackgroundTasks
 from fastapi.responses import HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Dict, Any, Optional, List
 from playwright.async_api import async_playwright
 
 app = FastAPI(title="S.T.E.R.L.I.N.G. Core Cloud Matrix")
 
+# 🔒 SECURITY MIDDLEWARE ALLOWANCES
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # 🔒 CENTRAL SOVEREIGN ACCESS CONTROL
-MASTER_PASSWORD = "omwony213"  # Your personal master password
+MASTER_PASSWORD = "omwony213"  
 active_mesh_nodes: Dict[str, Dict[str, Any]] = {}
 ceo_business_leads: List[Dict[str, Any]] = []
 
@@ -19,7 +29,7 @@ class OmniNetworkPayload(BaseModel):
     gateway_ip: str
     target_bssid: str
     whitelist_macs: List[str]
-    network_type: str = "DIRECT_ROUTER"  # Accepts: MESH_NODE, DIRECT_ROUTER, MOBILE_HOTSPOT, BLUETOOTH_TETHER
+    network_type: str = "DIRECT_ROUTER"  
 
 class WorkspaceErrorPayload(BaseModel):
     repository_name: str
@@ -43,7 +53,10 @@ def verify_director_access(x_sterling_auth: Optional[str] = Header(None)):
 # 🖥️ UNIVERSAL INTERFACE ROUTER (Serves index.html automatically to all viewports)
 @app.get("/", response_class=HTMLResponse)
 async def serve_universal_interface():
-    """Renders the responsive voice orb layer automatically to laptops, phones, or desktops."""
+    """
+    Renders the responsive voice orb layer automatically when you visit 
+    https://onrender.com on a laptop, mobile phone, or desktop.
+    """
     try:
         with open("index.html", "r", encoding="utf-8") as f:
             return f.read()
@@ -67,7 +80,6 @@ async def inject_network_protocol(payload: OmniNetworkPayload, auth: str = Depen
     target_id = f"gateway_{payload.target_bssid.replace(':', '')}"
     net_type = payload.network_type.upper()
     
-    # Cache infrastructure state on the server
     active_mesh_nodes[target_id] = {
         "gateway_ip": payload.gateway_ip,
         "transport_layer": net_type,
@@ -75,7 +87,6 @@ async def inject_network_protocol(payload: OmniNetworkPayload, auth: str = Depen
         "authorized_hardware": payload.whitelist_macs
     }
     
-    # Dynamically adjust the underlying interface parameters based on transport channel
     target_interface = "wlan0"
     if net_type == "BLUETOOTH_TETHER":
         target_interface = "bnep0"
@@ -84,26 +95,22 @@ async def inject_network_protocol(payload: OmniNetworkPayload, auth: str = Depen
 
     mac_accept_rules = "\n".join([f"iptables -A FORWARD -i {target_interface} -m mac --mac-source {mac} -j ACCEPT" for mac in payload.whitelist_macs])
     
-    # Compile the ultimate runtime script package to push to the local node over the air
     injected_firmware_script = f"""#!/bin/sh
 # S.T.E.R.L.I.N.G. Embedded Network Firmware Bridge
 # TRANSPORT: {net_type} | INTERFACE: {target_interface} | TARGET: {target_id}
 
-# Flush active routing barriers and establish the zero-trust hardware filter
 iptables -F FORWARD
 {mac_accept_rules}
 iptables -A FORWARD -i {target_interface} -j DROP
 
-# Stratosphere feedback loop to keep cloud tower informed
 while true; do
     curl -X POST -H "X-Sterling-Auth: {MASTER_PASSWORD}" \
          -H "Content-Type: application/json" \
          -d '{{"device_id": "{target_id}", "device_type": "GATEWAY_{net_type}"}}' \
-         https://onrender.com
+         https://onrender.com/api/v1/matrix/ceo-stream
     sleep 5
 done
 """
-    
     return {
         "status": "OMNI_FIRMWARE_COMPILED",
         "target_id": target_id,
