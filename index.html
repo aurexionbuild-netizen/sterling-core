@@ -128,7 +128,7 @@
             <div class="orb-glow" id="glow-matrix"></div>
             <canvas id="voice-orb" width="400" height="400"></canvas>
         </div>
-        <div class="status-text" id="system-status">INITIALIZING COGNITIVE INTERFACE LINKS...</div>
+        <div class="status-text" id="system-status">TAP ORB ONCE TO AWAKEN SYSTEM CORES...</div>
     </div>
 
     <div class="cockpit-panel" id="sovereign-cockpit-tray">
@@ -169,8 +169,7 @@
                 utterance.onend = () => {
                     isSpeaking = false;
                     if (nextStepFunction) {
-                        // ⏱️ AUDIO BUFFER TIMING MOAT: Injects 350ms of dead air to eliminate speaker feedback
-                        setTimeout(nextStepFunction, 350);
+                        setTimeout(nextStepFunction, 350); // Timing moat to completely clear audio echo
                     } else {
                         resetToAmbientWakeState();
                     }
@@ -219,13 +218,16 @@
             animationFrameId = requestAnimationFrame(drawOrb);
         }
 
+        // 🔥 THE ANTI-TIMEOUT SENTINEL AUTO-RESTART ENGINE
         function initializeWakeWordSentinel() {
             if (isListening || isSpeaking) return;
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             if (!SpeechRecognition) return;
 
             sentinelInstance = new SpeechRecognition();
-            sentinelInstance.continuous = false; sentinelInstance.interimResults = false; sentinelInstance.lang = 'en-US';
+            sentinelInstance.continuous = false; 
+            sentinelInstance.interimResults = false; 
+            sentinelInstance.lang = 'en-US';
 
             sentinelInstance.onstart = () => {
                 wakeWordLoopActive = true;
@@ -242,10 +244,11 @@
                 }
             };
 
+            // ⚡ THE IMMUNITY CROSS: Automatically re-fires the listener the instant it closes due to silence
             sentinelInstance.onend = () => {
                 wakeWordLoopActive = false;
                 if (!isListening && !isSpeaking) {
-                    setTimeout(initializeWakeWordSentinel, 50); 
+                    setTimeout(initializeWakeWordSentinel, 50); // Forced sub-millisecond restart line
                 }
             };
 
@@ -256,7 +259,7 @@
         async function triggerVoiceCommandCapture() {
             try {
                 isListening = true;
-                systemStatus.innerText = "S.T.E.R.L.I.N.G. : ONLINE & LISTENING";
+                systemStatus.innerText = "S.T.E.R.L.I.N.G. : COGNITIVE MODE ACTIVE";
                 systemStatus.className = "status-text active-listening";
                 
                 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -265,37 +268,40 @@
 
                 recognition.onresult = async (event) => {
                     const speechResult = event.results.transcript.toLowerCase();
-                    systemStatus.innerText = "PROCESSING INTERFACE INTENT...";
-
-                    if (speechResult.includes("cockpit") || speechResult.includes("connected") || speechResult.includes("devices")) {
-                        cockpitTray.classList.add('panel-deployed'); 
-                        refreshConnectedDevicesCockpit();
-                        speakResponse("Initializing Sovereign Cockpit Matrix dashboard display, Sir.");
-                        return;
-                    }
-                    if (speechResult.includes("hide") || speechResult.includes("close") || speechResult.includes("clear cockpit")) {
-                        cockpitTray.classList.remove('panel-deployed'); 
-                        speakResponse("Securing connected device matrices from display panel, Sir.");
-                        return;
-                    }
-
-                    if (speechResult.includes("police") || speechResult.includes("dispatch")) {
-                        try {
-                            await fetch(`/api/v1/matrix/dispatch-police/${deviceSignatureID}`, { method: 'POST', headers: { 'X-Sterling-Auth': 'omwony213' } });
-                            speakResponse("Emergency criteria mapped, Director. Dispatch vectors pushed.");
-                            return;
-                        } catch(e) {}
-                    }
+                    systemStatus.innerText = "THINKING PROTOCOL ENGAGED...";
 
                     try {
-                        await fetch('/api/v1/matrix/execute-command', {
+                        const response = await fetch('/api/v1/matrix/cognitive-process', {
                             method: 'POST',
-                            headers: { 'X-Sterling-Auth': 'omwony213', 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ target_device: "my_main_laptop", action: speechResult })
+                            headers: {
+                                'X-Sterling-Auth': 'omwony213',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                raw_transcript: speechResult,
+                                device_context: "UNIVERSAL_UI"
+                            })
                         });
-                        speakResponse("Directive routed successfully, Sir.");
+                        
+                        if (response.ok) {
+                            const matrixResult = await response.json();
+                            const actionIntent = matrixResult.action_intent;
+                            
+                            if (actionIntent === "DEPLOY_COCKPIT") {
+                                cockpitTray.classList.add('panel-deployed');
+                                refreshConnectedDevicesCockpit();
+                            } else if (actionIntent === "HIDE_COCKPIT") {
+                                cockpitTray.classList.remove('panel-deployed');
+                            } else if (actionIntent === "EMERGENCY_DISPATCH") {
+                                await fetch(`/api/v1/matrix/dispatch-police/${deviceSignatureID}`, { method: 'POST', headers: { 'X-Sterling-Auth': 'omwony213' } });
+                            }
+                            
+                            speakResponse(matrixResult.verbal_response);
+                        } else {
+                            speakResponse("Cognitive link failed. Security token mismatch.");
+                        }
                     } catch (e) {
-                        speakResponse("Matrix connection drop hit.");
+                        speakResponse("Matrix link drop hit.");
                     }
                 };
 
@@ -321,7 +327,6 @@
                 resetToAmbientWakeState();
             } catch(e) { alert("Optics link authorization failed."); }
         });
-
         animationFrameId = requestAnimationFrame(drawOrb);
         setInterval(syncTelemetryCoordinates, 30000);
     </script>
