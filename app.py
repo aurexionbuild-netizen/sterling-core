@@ -1,19 +1,16 @@
 import os
 import json
-import urllib.request
+import requests
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 app = FastAPI(title="STERLING Command Tower")
 
-# Fetch keys from Render Environment Configuration
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Track active network bridge connections
 class ConnectionManager:
     def __init__(self):
-        # FIXED: Added the missing brackets [] here
         self.active_connections: list[WebSocket] = []
 
     async def connect(self, websocket: WebSocket):
@@ -41,14 +38,13 @@ class NetworkLog(BaseModel):
     devices: list
 
 def ask_sterling_brain(user_voice_prompt: str) -> str:
-    """Processes user voice prompts using Groq speed, falling back to Gemini."""
     system_instruction = (
         "You are STERLING, an advanced, highly capable autonomous butler system. "
         "Interpret user commands flawlessly. If they ask to watch media, extract the "
         "platform, show name, and profile. Respond concisely."
     )
     
-    # 1. Try Primary Engine: Groq (Llama 3.3)
+    # Try Groq (Llama 3.3)
     if GROQ_API_KEY:
         try:
             url = "https://groq.com"
@@ -63,29 +59,30 @@ def ask_sterling_brain(user_voice_prompt: str) -> str:
                     {"role": "user", "content": user_voice_prompt}
                 ]
             }
-            req = urllib.request.Request(url, data=json.dumps(data).encode('utf-8'), headers=headers)
-            with urllib.request.urlopen(req, timeout=5) as response:
-                res_data = json.loads(response.read().decode('utf-8'))
-                return res_data['choices']['message']['content']
+            res = requests.post(url, json=data, headers=headers, timeout=5)
+            if res.status_code == 200:
+                return res.json()['choices'][0]['message']['content']
+            else:
+                print(f"[STERLING Engine] Groq error code: {res.status_code} - {res.text}")
         except Exception as e:
-            print(f"[STERLING Engine] Groq primary failed: {e}. Shifting to Gemini fallback...")
+            print(f"[STERLING Engine] Groq connection issue: {e}")
 
-    # 2. Fallback Engine: Google Gemini
+    # Fallback to Gemini
     if GEMINI_API_KEY:
         try:
             url = f"https://googleapis.com{GEMINI_API_KEY}"
-            headers = {"Content-Type": "application/json"}
             data = {
                 "contents": [{"parts": [{"text": f"{system_instruction}\n\nUser: {user_voice_prompt}"}]}]
             }
-            req = urllib.request.Request(url, data=json.dumps(data).encode('utf-8'), headers=headers)
-            with urllib.request.urlopen(req, timeout=5) as response:
-                res_data = json.loads(response.read().decode('utf-8'))
-                return res_data['candidates']['content']['parts']['text']
+            res = requests.post(url, json=data, timeout=5)
+            if res.status_code == 200:
+                return res.json()['candidates'][0]['content']['parts'][0]['text']
+            else:
+                print(f"[STERLING Engine] Gemini error code: {res.status_code} - {res.text}")
         except Exception as e:
-            print(f"[STERLING Engine] Gemini fallback failed: {e}")
+            print(f"[STERLING Engine] Gemini connection issue: {e}")
             
-    return "Sterling Core System Error: Both cognitive AI pipelines are unresponsive."
+    return f"Sterling Core System Error: AI pipelines unresponsive. Config Check - Groq Key Present: {bool(GROQ_API_KEY)}, Gemini Key Present: {bool(GEMINI_API_KEY)}"
 
 @app.get("/")
 def read_root():
@@ -98,7 +95,6 @@ def chat_endpoint(prompt: str):
 
 @app.post("/api/play-media")
 async def play_media(request: MediaRequest):
-    print(f"[STERLING] Interpreting intent: Play '{request.content}' on {request.platform} (Profile: {request.profile})")
     payload = {
         "action": "LAUNCH_MEDIA",
         "platform": request.platform,
@@ -110,11 +106,9 @@ async def play_media(request: MediaRequest):
 
 @app.post("/api/register-network")
 async def register_network(log: NetworkLog):
-    print("[STERLING] Received silent network scan data:")
-    print(json.dumps(log.devices, indent=2))
+    print(f"[STERLING] Received network update packet: {log.devices}")
     return {"status": "Topology catalogued successfully"}
 
-# FIXED: Corrected standard FastAPI router signature
 @app.websocket("/ws/network-bridge")
 async def websocket_endpoint(websocket: WebSocket):
     await manager.connect(websocket)
@@ -123,6 +117,6 @@ async def websocket_endpoint(websocket: WebSocket):
             data = await websocket.receive_text()
             message = json.loads(data)
             if message.get("type") == "NETWORK_CATALOGUE":
-                print("[STERLING] Received live WebSocket network data update")
+                print("[STERLING] Network update captured via socket link.")
     except WebSocketDisconnect:
         manager.disconnect(websocket)
