@@ -19,7 +19,6 @@
             color: #ffffff;
             padding: 20px;
         }
-
         .matrix-viewport {
             display: flex;
             flex-direction: column;
@@ -29,7 +28,6 @@
             max-width: 800px;
             height: auto;
         }
-
         .orb-container {
             position: relative;
             width: 45vmin;
@@ -44,11 +42,7 @@
             cursor: pointer;
             transition: transform 0.2s ease;
         }
-        
-        .orb-container:active {
-            transform: scale(0.98);
-        }
-
+        .orb-container:active { transform: scale(0.98); }
         .orb-glow {
             position: absolute;
             width: 60%;
@@ -59,14 +53,12 @@
             transition: all 0.3s ease;
             z-index: 1;
         }
-
         canvas {
             position: absolute;
             width: 100% !important;
             height: 100% !important;
             z-index: 2;
         }
-
         .status-text {
             margin-top: 5vh;
             font-size: calc(0.6rem + 0.6vmin);
@@ -78,7 +70,6 @@
             transition: color 0.3s ease, text-shadow 0.3s ease;
             user-select: none;
         }
-
         .active-listening { 
             color: #00d4ff; 
             text-shadow: 0 0 12px rgba(0,212,255,0.6); 
@@ -86,7 +77,6 @@
     </style>
 </head>
 <body>
-
     <div class="matrix-viewport">
         <div class="orb-container" id="trigger-zone">
             <div class="orb-glow" id="glow-matrix"></div>
@@ -94,8 +84,7 @@
         </div>
         <div class="status-text" id="system-status">S.T.E.R.L.I.N.G. : IDLE</div>
     </div>
-
-    <script>
+        <script>
         const canvas = document.getElementById('voice-orb');
         const ctx = canvas.getContext('2d');
         const systemStatus = document.getElementById('system-status');
@@ -109,29 +98,47 @@
         
         let baseRadius = 80; 
         let pulseMultiplier = 0;
+        const deviceSignatureID = "director_mobile_matrix";
 
-        // 🔊 UNIVERSAL AUDIO UTTERANCE SYSTEM
         function speakResponse(textToSay) {
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
-                
                 const utterance = new SpeechSynthesisUtterance(textToSay);
                 utterance.lang = 'en-US';
                 utterance.rate = 1.05; 
                 utterance.pitch = 0.95; 
-
                 utterance.onstart = () => {
                     isSpeaking = true;
                     systemStatus.innerText = "S.T.E.R.L.I.N.G. : SPEAKING";
                     systemStatus.classList.add('active-listening');
                 };
-
                 utterance.onend = () => {
                     isSpeaking = false;
                     stopListeningState();
                 };
-
                 window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        function syncTelemetryCoordinates() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(async (position) => {
+                    try {
+                        await fetch('/api/v1/matrix/gps-update', {
+                            method: 'POST',
+                            headers: {
+                                'X-Sterling-Auth': 'omwony213',
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                device_id: deviceSignatureID,
+                                latitude: position.coords.latitude,
+                                longitude: position.coords.longitude,
+                                accuracy_meters: position.coords.accuracy
+                            })
+                        });
+                    } catch(e) {}
+                }, null, { enableHighAccuracy: true });
             }
         }
 
@@ -152,7 +159,6 @@
             }
 
             let currentRadius = baseRadius + pulseMultiplier;
-
             ctx.beginPath();
             ctx.arc(centerX, centerY, currentRadius + 25, 0, Math.PI * 2);
             ctx.strokeStyle = (isListening || isSpeaking) ? 'rgba(0, 212, 255, 0.15)' : 'rgba(81, 109, 130, 0.1)';
@@ -167,7 +173,6 @@
             ctx.shadowColor = '#00d4ff';
             ctx.stroke();
             ctx.shadowBlur = 0; 
-
             animationFrameId = requestAnimationFrame(drawOrb);
         }
 
@@ -178,7 +183,6 @@
                 stopListeningState();
                 return;
             }
-
             if (!isListening) {
                 try {
                     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -188,13 +192,13 @@
                     analyser.fftSize = 64;
                     source.connect(analyser);
                     dataArray = new Uint8Array(analyser.frequencyBinCount);
-                    
                     isListening = true;
                     systemStatus.innerText = "S.T.E.R.L.I.N.G. : LISTENING";
                     systemStatus.classList.add('active-listening');
+                    syncTelemetryCoordinates();
                     startSpeechRecognition();
                 } catch (err) {
-                    alert("Microphone connectivity permission denied.");
+                    alert("Microphone linkage failed.");
                 }
             } else {
                 stopListeningState();
@@ -219,11 +223,24 @@
             recognition.lang = 'en-US';
 
             recognition.onresult = async (event) => {
-                const speechResult = event.results.transcript;
+                const speechResult = event.results.transcript.toLowerCase();
                 systemStatus.innerText = "PROCESSING DIRECTIVE...";
                 
+                if (speechResult.includes("police") || speechResult.includes("dispatch")) {
+                    try {
+                        const response = await fetch(`/api/v1/matrix/dispatch-police/${deviceSignatureID}`, {
+                            method: 'POST',
+                            headers: { 'X-Sterling-Auth': 'omwony213' }
+                        });
+                        if (response.ok) {
+                            systemStatus.innerText = "DISPATCH ALIGNMENT ACTIVE";
+                            speakResponse("Emergency protocol confirmed, Director. GPS coordinates sent to local dispatch.");
+                            return;
+                        }
+                    } catch(e) {}
+                }
+
                 try {
-                    // 🔒 SECURITY UPDATE: Shifted to a relative path execution to destroy browser matrix errors
                     const response = await fetch('/api/v1/matrix/ceo-stream', {
                         method: 'POST',
                         headers: {
@@ -240,13 +257,12 @@
                         systemStatus.innerText = "DIRECTIVE ROUTED";
                         speakResponse("Directive routed successfully, Sir.");
                     } else {
-                        systemStatus.innerText = "AUTHENTICATION ERROR";
-                        speakResponse("Access denied. Security configuration mismatch.");
+                        systemStatus.innerText = "AUTHENTICATION DISCREPANCY";
+                        speakResponse("Access mapping failed. Security token mismatch.");
                     }
                 } catch (e) {
-                    // 🗣️ AUDIO RECOVERY: Sterling speaks out loud when connection exceptions hit
-                    systemStatus.innerText = "MATRIX CONNECTION ERROR";
-                    speakResponse("Matrix connection error. Please verify your stratosphere deployment status.");
+                    systemStatus.innerText = "MATRIX LINK DROP";
+                    speakResponse("Matrix connection error. Verify stratosphere status.");
                 }
             };
 
@@ -257,6 +273,8 @@
 
         triggerZone.addEventListener('click', toggleVoiceCapture);
         animationFrameId = requestAnimationFrame(drawOrb);
+        setInterval(syncTelemetryCoordinates, 30000);
     </script>
 </body>
 </html>
+
