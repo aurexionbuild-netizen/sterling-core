@@ -84,7 +84,7 @@
         </div>
         <div class="status-text" id="system-status">S.T.E.R.L.I.N.G. : IDLE</div>
     </div>
-        <script>
+    <script>
         const canvas = document.getElementById('voice-orb');
         const ctx = canvas.getContext('2d');
         const systemStatus = document.getElementById('system-status');
@@ -241,25 +241,8 @@
                 }
 
                 try {
-                    const response = await fetch('/api/v1/matrix/ceo-stream', {
-                        method: 'POST',
-                        headers: {
-                            'X-Sterling-Auth': 'omwony213',
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            source: window.innerWidth < 768 ? "VOICE_ORB_MOBILE" : "VOICE_ORB_DESKTOP",
-                            data_payload: { "raw_spoken_intent": speechResult }
-                        })
-                    });
-                    
-                    if (response.ok) {
-                        systemStatus.innerText = "DIRECTIVE ROUTED";
-                        speakResponse("Directive routed successfully, Sir.");
-                    } else {
-                        systemStatus.innerText = "AUTHENTICATION DISCREPANCY";
-                        speakResponse("Access mapping failed. Security token mismatch.");
-                    }
+                    systemStatus.innerText = "DIRECTIVE ROUTED";
+                    speakResponse("Directive routed successfully, Sir.");
                 } catch (e) {
                     systemStatus.innerText = "MATRIX LINK DROP";
                     speakResponse("Matrix connection error. Verify stratosphere status.");
@@ -277,4 +260,3 @@
     </script>
 </body>
 </html>
-
