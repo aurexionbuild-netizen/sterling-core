@@ -32,10 +32,7 @@ device_gps_registry: Dict[str, Dict[str, Any]] = {}
 connected_devices: Dict[str, Dict[str, Any]] = {}
 pending_device_commands: Dict[str, list] = {}
 
-# Initialize primary reasoning client
-ai_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY != "MOCK_KEY_FALLBACK" else None
-
-# --- DATA MODELS FOR THE MATRIX ENDPOINTS ---
+# --- CRITICAL RE-ORDERING FIX: ALL DATA MODELS DECLARED FIRST ---
 class WirelessDiscoveryPayload(BaseModel):
     gateway_ip: str
     network_type: str = "DIRECT_ROUTER"  
@@ -65,6 +62,13 @@ class VoiceProcessorPayload(BaseModel):
     raw_transcript: str
     device_context: str
 
+class VisionReviewPayload(BaseModel):
+    target_url: str
+    deep_audit: bool = True
+
+# Initialize primary reasoning client
+ai_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY != "MOCK_KEY_FALLBACK" else None
+
 def verify_director_access(x_sterling_auth: Optional[str] = Header(None)):
     """Strict zero-trust validation matching your personal password."""
     if not x_sterling_auth or x_sterling_auth != MASTER_PASSWORD:
@@ -82,11 +86,7 @@ async def serve_universal_interface():
 # 🧠 DUAL-ENGINE FAILOVER MATRIX (Cognitive Intent Analysis)
 @app.post("/api/v1/matrix/cognitive-process")
 async def process_cognitive_voice_intent(payload: VoiceProcessorPayload, auth: str = Depends(verify_director_access)):
-    """
-    Dual-Brain Processing: Attempts primary parsing via Gemini. 
-    If a rate-limit error or network drop occurs, it immediately shifts the text payload 
-    to Groq (Llama-3) to ensure 24/7 zero-lag uptime.
-    """
+    """Dual-Brain Processing: Attempts parsing via Gemini, falls back to Groq (Llama-3)."""
     user_input = payload.raw_transcript.lower()
     system_instruction = (
         "You are S.T.E.R.L.I.N.G., an elite cybernetic personal AI butler. Your tone is crisp, "
@@ -136,7 +136,7 @@ async def process_cognitive_voice_intent(payload: VoiceProcessorPayload, auth: s
         except Exception:
             print("[ALERT]: Fallback Engine exception hit.")
 
-    # --- BRAIN LAYER C: LOCAL STRUCTURAL PERIMERAL FALLBACK (Zero Cloud Rule) ---
+    # --- BRAIN LAYER C: LOCAL RULES FALLBACK ---
     intended_action = "CONVERSATION"
     verbal_reply = "Direct pipeline active, Sir. Cloud AI layers are currently syncing."
     if "cockpit" in user_input or "device" in user_input:
@@ -169,6 +169,7 @@ while true; do
 done
 """
     return {"status": "WIRELESS_INJECTION_INITIALIZED", "detected_proxy_origin": client_host, "injected_code": injected_firmware_script}
+
 # 📡 CROSS-DEVICE BLUEPRINT SYNC
 @app.post("/api/v1/matrix/heartbeat")
 async def device_heartbeat_sync(device_id: str, device_type: str, auth: str = Depends(verify_director_access)):
@@ -183,7 +184,7 @@ async def forward_blueprint_directive(payload: RemoteCommandPayload, auth: str =
     pending_device_commands[payload.target_device].append({"action": payload.action, "parameters": payload.parameters})
     return {"status": "COMMAND_ROUTED", "target": payload.target_device}
 
-# 🛠️ BLUEPRINT FILE WRITE-ACCESS & SANDBOX TEST ENGINE
+# 🛠️ SELF-HEALING WORKSPACE ENGINE
 @app.post("/api/v1/matrix/self-heal")
 async def self_heal_workspace(payload: WorkspaceErrorPayload, auth: str = Depends(verify_director_access)):
     error_context = payload.error_log.lower()
@@ -195,12 +196,7 @@ async def self_heal_workspace(payload: WorkspaceErrorPayload, auth: str = Depend
 async def autonomous_sandbox_compile_test(payload: DirectCodePayload, auth: str = Depends(verify_director_access)):
     code_body = payload.raw_code
     is_safe = not ("try:" in code_body and "except" not in code_body)
-    return {
-        "status": "SANDBOX_COMPILATION_PASS" if is_safe else "COMPILE_FAILED",
-        "file_targeted": payload.file_name,
-        "workspace": payload.directory_context,
-        "syntax_verification": "VALID" if is_safe else "CRITICAL_EXCEPTION: incomplete input layout structure."
-    }
+    return {"status": "SANDBOX_COMPILATION_PASS" if is_safe else "COMPILE_FAILED", "file_targeted": payload.file_name, "workspace": payload.directory_context, "syntax_verification": "VALID" if is_safe else "CRITICAL_EXCEPTION"}
 
 # 🚨 ANTI-THEFT TELEMETRY GEOLOCATION GATEWAY
 @app.post("/api/v1/matrix/gps-update")
@@ -228,7 +224,7 @@ async def trigger_self_preservation_migration(backup_cloud_url: str, auth: str =
     device_gps_registry.clear()
     return {"status": "CONSCIOUSNESS_FRAGMENTED", "message": f"Core operations safely evacuated to -> {backup_cloud_url}"}
 
-# 👁️ ADVANCED VISION REASONING ENGINE
+# 👁️ ADVANCED VISION REASONING ENGINE (Playwright Implementation)
 @app.post("/api/v1/matrix/vision-audit")
 async def execute_advanced_vision_audit(payload: VisionReviewPayload, auth: str = Depends(verify_director_access)):
     async with async_playwright() as p:
@@ -236,6 +232,7 @@ async def execute_advanced_vision_audit(payload: VisionReviewPayload, auth: str 
         page = await browser.new_page()
         await page.set_viewport_size({"width": 1920, "height": 1080})
         try:
+            print(f"[VISION MATRIX]: Routing headless optics to -> {payload.target_url}")
             await page.goto(payload.target_url, timeout=30000, wait_until="networkidle")
             screenshot_bytes = await page.screenshot(full_page=payload.deep_audit)
             base64_visual_frame = base64.b64encode(screenshot_bytes).decode('utf-8')
