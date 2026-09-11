@@ -28,15 +28,6 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
-class MediaRequest(BaseModel):
-    content: str
-    platform: str
-    profile: str
-
-class NetworkLog(BaseModel):
-    type: str
-    devices: list
-
 def ask_sterling_brain(user_voice_prompt: str) -> str:
     system_instruction = (
         "You are STERLING, an advanced, highly capable autonomous butler system. "
@@ -46,7 +37,7 @@ def ask_sterling_brain(user_voice_prompt: str) -> str:
     
     diagnostic_info = {}
 
-    # 1. Primary Engine: Groq (Llama 3.3 Production)
+    # 1. Primary Cognitive Pipeline: Groq (Llama 3.3 Versatile)
     if GROQ_API_KEY:
         try:
             clean_groq_key = str(GROQ_API_KEY).strip().replace('"', '').replace("'", "")
@@ -56,7 +47,7 @@ def ask_sterling_brain(user_voice_prompt: str) -> str:
                 "Content-Type": "application/json"
             }
             data = {
-                "model": "llama-3.3-70b-specdec",
+                "model": "llama-3.3-70b-versatile",
                 "messages": [
                     {"role": "system", "content": system_instruction},
                     {"role": "user", "content": user_voice_prompt}
@@ -70,11 +61,11 @@ def ask_sterling_brain(user_voice_prompt: str) -> str:
         except Exception as e:
             diagnostic_info["groq_exception"] = str(e)
 
-    # 2. Fallback Engine: Google Gemini (Updated to gemini-3.1-flash-latest)
+    # 2. Fallback Cognitive Pipeline: Google Gemini (Gemini 2.5 Flash Production Layout)
     if GEMINI_API_KEY:
         try:
             clean_gemini_key = str(GEMINI_API_KEY).strip().replace('"', '').replace("'", "")
-            # FIXED: Set to gemini-3.1-flash-latest with standard v1 API path signature
+            # FIXED: Corrected Google AI Studio Developer Endpoint Path Layout
             url = "https://googleapis.com"
             query_params = {"key": clean_gemini_key}
             headers = {"Content-Type": "application/json"}
@@ -91,7 +82,7 @@ def ask_sterling_brain(user_voice_prompt: str) -> str:
         except Exception as e:
             diagnostic_info["gemini_exception"] = str(e)
             
-    return f"Diagnostics Phase 6 - Pipeline Fault: {json.dumps(diagnostic_info)}"
+    return f"Diagnostics Phase 7 - Internal Pipeline Report: {json.dumps(diagnostic_info)}"
 
 @app.get("/")
 def read_root():
