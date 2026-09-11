@@ -1,16 +1,15 @@
 import os
-import re
 import requests
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, WebSocket
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-# ============================================================
+============================================================
 
-# STERLING COMMAND TOWER
+STERLING COMMAND TOWER
 
-# ============================================================
+============================================================
 
 app = FastAPI(
 title="STERLING Command Tower",
@@ -20,46 +19,46 @@ version="1.0.0"
 
 app.add_middleware(
 CORSMiddleware,
-allow_origins=["*"],
+allow_origins=[""],
 allow_credentials=True,
-allow_methods=["*"],
+allow_methods=[""],
 allow_headers=["*"],
 )
 
-# ============================================================
+============================================================
 
-# ENVIRONMENT
+ENVIRONMENT
 
-# ============================================================
+============================================================
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 
-# ============================================================
+============================================================
 
-# CONVERSATION MEMORY
+CONVERSATION MEMORY
 
-# ============================================================
+============================================================
 
 conversation_history = []
+
 MAX_HISTORY = 12
 
 def add_to_memory(role, content):
+
 conversation_history.append({
-"role": role,
-"content": content
+    "role": role,
+    "content": content
 })
 
-```
 if len(conversation_history) > MAX_HISTORY:
     del conversation_history[:-MAX_HISTORY]
-```
 
-# ============================================================
+============================================================
 
-# STERLING PERSONALITY
+STERLING PERSONALITY
 
-# ============================================================
+============================================================
 
 SYSTEM_INSTRUCTION = """
 You are STERLING, an advanced personal AI command system and digital butler.
@@ -69,15 +68,15 @@ but you are your own distinct system.
 
 Your characteristics:
 
-* Calm
-* Intelligent
-* Confident
-* Articulate
-* Professional
-* Composed
-* Helpful
-* Occasionally witty when appropriate
-* Natural and conversational
+- Calm
+- Intelligent
+- Confident
+- Articulate
+- Professional
+- Composed
+- Helpful
+- Occasionally witty when appropriate
+- Natural and conversational
 
 You are speaking directly to your user.
 
@@ -103,7 +102,6 @@ Do not claim that you performed an action unless the system actually provides
 the ability to perform that action.
 
 You are currently operating primarily as an intelligent conversational assistant.
-You may explain what could be done, but do not pretend an external action occurred.
 
 Because your responses are spoken aloud, avoid excessive formatting,
 long lists, unnecessary headings, and complicated markdown.
@@ -113,18 +111,18 @@ When appropriate, address the user naturally without overusing their name.
 Your goal is to feel like a genuine command-center AI rather than a generic chatbot.
 """
 
-# ============================================================
+============================================================
 
-# GROQ MODEL DISCOVERY
+GROQ MODEL DISCOVERY
 
-# ============================================================
+============================================================
 
 groq_model_cache = None
 
 def get_groq_model():
+
 global groq_model_cache
 
-```
 if groq_model_cache:
     return groq_model_cache
 
@@ -138,6 +136,7 @@ headers = {
 }
 
 try:
+
     response = requests.get(
         url,
         headers=headers,
@@ -145,6 +144,13 @@ try:
     )
 
     if response.status_code != 200:
+
+        print(
+            "Groq model discovery error:",
+            response.status_code,
+            response.text
+        )
+
         return None
 
     data = response.json()
@@ -154,23 +160,35 @@ try:
     available = []
 
     for model in models:
+
         model_id = model.get("id")
 
         if model_id:
             available.append(model_id)
+
 
     preferred_models = [
         "llama-3.1-8b-instant",
         "llama-3.3-70b-versatile",
         "llama-3.1-70b-versatile",
         "openai/gpt-oss-120b",
-        "openai/gpt-oss-20b",
+        "openai/gpt-oss-20b"
     ]
 
+
     for preferred in preferred_models:
+
         if preferred in available:
+
             groq_model_cache = preferred
+
+            print(
+                "STERLING selected Groq model:",
+                preferred
+            )
+
             return preferred
+
 
     keywords = [
         "llama",
@@ -179,44 +197,70 @@ try:
         "gpt"
     ]
 
+
     for keyword in keywords:
+
         for model_id in available:
+
             if keyword in model_id.lower():
+
                 groq_model_cache = model_id
+
+                print(
+                    "STERLING selected fallback Groq model:",
+                    model_id
+                )
+
                 return model_id
 
+
     if available:
+
         groq_model_cache = available[0]
+
+        print(
+            "STERLING selected available Groq model:",
+            available[0]
+        )
+
         return available[0]
 
-except Exception:
-    return None
+
+except Exception as error:
+
+    print(
+        "Groq model discovery exception:",
+        error
+    )
+
 
 return None
-```
 
-# ============================================================
+============================================================
 
-# GROQ
+GROQ AI
 
-# ============================================================
+============================================================
 
 def ask_groq(user_prompt):
-if not GROQ_API_KEY:
-return None
 
-```
+if not GROQ_API_KEY:
+    return None
+
 model = get_groq_model()
 
 if not model:
     return None
 
+
 url = "https://api.groq.com/openai/v1/chat/completions"
+
 
 headers = {
     "Authorization": f"Bearer {GROQ_API_KEY}",
     "Content-Type": "application/json"
 }
+
 
 messages = [
     {
@@ -225,12 +269,15 @@ messages = [
     }
 ]
 
+
 messages.extend(conversation_history)
+
 
 messages.append({
     "role": "user",
     "content": user_prompt
 })
+
 
 payload = {
     "model": model,
@@ -239,7 +286,9 @@ payload = {
     "max_tokens": 700
 }
 
+
 try:
+
     response = requests.post(
         url,
         headers=headers,
@@ -247,53 +296,78 @@ try:
         timeout=45
     )
 
+
     if response.status_code != 200:
+
         print(
             "Groq error:",
             response.status_code,
             response.text
         )
+
         return None
+
 
     result = response.json()
 
-    return result["choices"][0]["message"]["content"].strip()
+
+    return (
+        result["choices"][0]
+        ["message"]["content"]
+        .strip()
+    )
+
 
 except Exception as error:
-    print("Groq exception:", error)
+
+    print(
+        "Groq exception:",
+        error
+    )
+
     return None
-```
 
-# ============================================================
+============================================================
 
-# GEMINI FALLBACK
+GEMINI FALLBACK
 
-# ============================================================
+============================================================
 
 def ask_gemini(user_prompt):
-if not GEMINI_API_KEY:
-return None
 
-```
+if not GEMINI_API_KEY:
+    return None
+
+
 url = (
     "https://generativelanguage.googleapis.com/"
     "v1beta/models/gemini-3.6-flash:generateContent"
 )
 
+
 params = {
     "key": GEMINI_API_KEY
 }
 
+
 contents = []
 
+
 for message in conversation_history:
+
     role = message.get("role")
+
     content = message.get("content")
 
+
     if role == "assistant":
+
         gemini_role = "model"
+
     else:
+
         gemini_role = "user"
+
 
     contents.append({
         "role": gemini_role,
@@ -304,6 +378,7 @@ for message in conversation_history:
         ]
     })
 
+
 contents.append({
     "role": "user",
     "parts": [
@@ -313,6 +388,7 @@ contents.append({
     ]
 })
 
+
 payload = {
     "system_instruction": {
         "parts": [
@@ -321,14 +397,18 @@ payload = {
             }
         ]
     },
+
     "contents": contents,
+
     "generationConfig": {
         "temperature": 0.7,
         "maxOutputTokens": 700
     }
 }
 
+
 try:
+
     response = requests.post(
         url,
         params=params,
@@ -336,15 +416,20 @@ try:
         timeout=45
     )
 
+
     if response.status_code != 200:
+
         print(
             "Gemini error:",
             response.status_code,
             response.text
         )
+
         return None
 
+
     result = response.json()
+
 
     return (
         result["candidates"][0]
@@ -353,79 +438,102 @@ try:
         .strip()
     )
 
+
 except Exception as error:
-    print("Gemini exception:", error)
-    return None
-```
 
-# ============================================================
-
-# AI RESPONSE ENGINE
-
-# ============================================================
-
-def generate_response(user_prompt):
-user_prompt = user_prompt.strip()
-
-```
-if not user_prompt:
-    return "I didn't catch that."
-
-add_to_memory("user", user_prompt)
-
-answer = ask_groq(user_prompt)
-
-if not answer:
-    answer = ask_gemini(user_prompt)
-
-if not answer:
-    answer = (
-        "I'm unable to reach my language systems at the moment. "
-        "Please try again shortly."
+    print(
+        "Gemini exception:",
+        error
     )
 
-add_to_memory("assistant", answer)
+    return None
+
+============================================================
+
+AI RESPONSE ENGINE
+
+============================================================
+
+def generate_response(user_prompt):
+
+user_prompt = user_prompt.strip()
+
+
+if not user_prompt:
+
+    return "I didn't catch that."
+
+
+add_to_memory(
+    "user",
+    user_prompt
+)
+
+
+answer = ask_groq(
+    user_prompt
+)
+
+
+if not answer:
+
+    answer = ask_gemini(
+        user_prompt
+    )
+
+
+if not answer:
+
+    answer = (
+        "I'm unable to reach my language systems "
+        "at the moment. Please try again shortly."
+    )
+
+
+add_to_memory(
+    "assistant",
+    answer
+)
+
 
 return answer
-```
 
-# ============================================================
+============================================================
 
-# WEB UI
+STERLING WEB INTERFACE
 
-# ============================================================
+============================================================
 
 ORB_UI_HTML = r"""
 
-<!DOCTYPE html>
-
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-
-<meta
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta
 name="viewport"
 content="width=device-width, initial-scale=1.0"
 
->
+«»
 
-<title>STERLING Command Tower</title>
-
-<style>
+<title>STERLING Command Tower</title><style>
 
 * {
     box-sizing: border-box;
 }
 
+
 html,
 body {
+
     margin: 0;
+
     padding: 0;
+
     width: 100%;
+
     height: 100%;
 }
 
+
 body {
+
     background:
         radial-gradient(
             circle at center,
@@ -446,85 +554,126 @@ body {
     overflow: hidden;
 }
 
+
 #app {
+
     width: 100%;
+
     height: 100%;
+
     display: flex;
+
     flex-direction: column;
+
     align-items: center;
+
     justify-content: center;
+
     position: relative;
 }
 
+
 .top-label {
+
     position: absolute;
+
     top: 28px;
+
     left: 32px;
 
     font-size: 12px;
+
     letter-spacing: 4px;
+
     text-transform: uppercase;
 
     color: rgba(190, 210, 240, 0.55);
 }
 
+
 .system-status {
+
     position: absolute;
+
     top: 30px;
+
     right: 32px;
 
     font-size: 11px;
+
     letter-spacing: 2px;
+
     text-transform: uppercase;
 
     color: rgba(150, 190, 230, 0.65);
 }
 
+
 .orb-container {
+
     width: 320px;
+
     height: 320px;
 
     position: relative;
 
     display: flex;
+
     align-items: center;
+
     justify-content: center;
 }
 
+
 .orb-ring {
+
     position: absolute;
 
     width: 250px;
+
     height: 250px;
 
     border-radius: 50%;
 
     border: 1px solid rgba(50, 145, 255, 0.16);
 
-    animation: rotate 14s linear infinite;
+    animation:
+        rotate 14s linear infinite;
 }
 
+
 .orb-ring:nth-child(2) {
+
     width: 290px;
+
     height: 290px;
 
-    border-color: rgba(90, 130, 255, 0.10);
+    border-color:
+        rgba(90, 130, 255, 0.10);
 
     animation-duration: 20s;
+
     animation-direction: reverse;
 }
 
+
 .orb-ring:nth-child(3) {
+
     width: 320px;
+
     height: 320px;
 
-    border-color: rgba(120, 170, 255, 0.06);
+    border-color:
+        rgba(120, 170, 255, 0.06);
 
     animation-duration: 28s;
 }
 
+
 .orb {
+
     width: 170px;
+
     height: 170px;
 
     border-radius: 50%;
@@ -543,14 +692,17 @@ body {
         0 0 90px rgba(58, 130, 246, 0.35),
         inset 0 0 40px rgba(255, 255, 255, 0.16);
 
-    animation: breathe 3s ease-in-out infinite;
+    animation:
+        breathe 3s ease-in-out infinite;
 
     position: relative;
 
     cursor: default;
 }
 
+
 .orb::before {
+
     content: "";
 
     position: absolute;
@@ -559,28 +711,37 @@ body {
 
     border-radius: 50%;
 
-    border: 1px solid rgba(255,255,255,0.16);
+    border:
+        1px solid
+        rgba(255,255,255,0.16);
 }
 
+
 .orb::after {
+
     content: "";
 
     position: absolute;
 
     width: 38px;
+
     height: 38px;
 
     left: 42px;
+
     top: 28px;
 
     border-radius: 50%;
 
-    background: rgba(255,255,255,0.25);
+    background:
+        rgba(255,255,255,0.25);
 
     filter: blur(10px);
 }
 
+
 .state-listening .orb {
+
     background:
         radial-gradient(
             circle at 35% 30%,
@@ -595,7 +756,9 @@ body {
         0 0 100px rgba(39, 209, 127, 0.40);
 }
 
+
 .state-processing .orb {
+
     background:
         radial-gradient(
             circle at 35% 30%,
@@ -614,7 +777,9 @@ body {
         spin-glow 2s linear infinite;
 }
 
+
 .state-speaking .orb {
+
     background:
         radial-gradient(
             circle at 35% 30%,
@@ -628,25 +793,32 @@ body {
         0 0 45px rgba(220, 235, 255, 0.95),
         0 0 110px rgba(80, 150, 255, 0.50);
 
-    animation: speaking 0.9s ease-in-out infinite;
+    animation:
+        speaking 0.9s ease-in-out infinite;
 }
 
+
 .status {
+
     margin-top: 24px;
 
     font-size: 14px;
+
     letter-spacing: 3px;
 
     text-transform: uppercase;
 
-    color: rgba(210, 225, 245, 0.70);
+    color:
+        rgba(210, 225, 245, 0.70);
 
     min-height: 20px;
 
     text-align: center;
 }
 
+
 .response {
+
     width: min(720px, 82vw);
 
     margin-top: 24px;
@@ -655,36 +827,48 @@ body {
 
     padding: 15px 20px;
 
-    border: 1px solid rgba(100, 150, 220, 0.12);
+    border:
+        1px solid
+        rgba(100, 150, 220, 0.12);
 
     border-radius: 14px;
 
-    background: rgba(7, 15, 28, 0.55);
+    background:
+        rgba(7, 15, 28, 0.55);
 
     backdrop-filter: blur(14px);
 
-    color: rgba(225, 235, 250, 0.86);
+    color:
+        rgba(225, 235, 250, 0.86);
 
     font-size: 15px;
+
     line-height: 1.6;
 
     text-align: center;
 
     opacity: 0;
 
-    transform: translateY(8px);
+    transform:
+        translateY(8px);
 
     transition:
         opacity 0.35s ease,
         transform 0.35s ease;
 }
 
+
 .response.visible {
+
     opacity: 1;
-    transform: translateY(0);
+
+    transform:
+        translateY(0);
 }
 
+
 .footer {
+
     position: absolute;
 
     bottom: 28px;
@@ -693,12 +877,15 @@ body {
 
     letter-spacing: 5px;
 
-    color: rgba(160, 180, 210, 0.35);
+    color:
+        rgba(160, 180, 210, 0.35);
 
     text-transform: uppercase;
 }
 
+
 .mic-warning {
+
     display: none;
 
     position: absolute;
@@ -709,16 +896,21 @@ body {
 
     border-radius: 10px;
 
-    background: rgba(80, 20, 20, 0.55);
+    background:
+        rgba(80, 20, 20, 0.55);
 
-    border: 1px solid rgba(255, 100, 100, 0.2);
+    border:
+        1px solid
+        rgba(255, 100, 100, 0.2);
 
-    color: rgba(255, 190, 190, 0.85);
+    color:
+        rgba(255, 190, 190, 0.85);
 
     font-size: 12px;
 
     text-align: center;
 }
+
 
 @keyframes breathe {
 
@@ -730,6 +922,1194 @@ body {
         transform: scale(1.035);
     }
 }
+
+
+@keyframes speaking {
+
+    0%, 100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.07);
+    }
+}
+
+
+@keyframes rotate {
+
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+
+@keyframes spin-glow {
+
+    from {
+        filter:
+            hue-rotate(0deg);
+    }
+
+    to {
+        filter:
+            hue-rotate(35deg);
+    }
+}
+
+</style></head><body><div id="app"><div class="top-label">
+    STERLING
+</div>
+
+
+<div
+    class="system-status"
+    id="systemStatus"
+>
+    SYSTEM ONLINE
+</div>
+
+
+<div
+    class="orb-container"
+    id="orbContainer"
+>
+
+    <div class="orb-ring"></div>
+
+    <div class="orb-ring"></div>
+
+    <div class="orb-ring"></div>
+
+
+    <div
+        class="orb"
+        id="orb"
+    ></div>
+
+</div>
+
+
+<div
+    class="status"
+    id="status"
+>
+    STANDBY — SAY STERLING
+</div>
+
+
+<div
+    class="response"
+    id="response"
+></div>
+
+
+<div
+    class="mic-warning"
+    id="micWarning"
+>
+    Microphone access is required for voice interaction.
+    Please allow microphone access in your browser.
+</div>
+
+
+<div class="footer">
+    STERLING COMMAND TOWER
+</div>
+
+</div><script>
+
+
+let recognition = null;
+
+let wakeRecognition = null;
+
+let isProcessing = false;
+
+let isSpeaking = false;
+
+let wakeRestartTimer = null;
+
+
+const app =
+    document.getElementById(
+        "app"
+    );
+
+
+const statusElement =
+    document.getElementById(
+        "status"
+    );
+
+
+const responseElement =
+    document.getElementById(
+        "response"
+    );
+
+
+const systemStatus =
+    document.getElementById(
+        "systemStatus"
+    );
+
+
+const micWarning =
+    document.getElementById(
+        "micWarning"
+    );
+
+
+function setState(
+    state,
+    text
+) {
+
+    app.classList.remove(
+        "state-listening",
+        "state-processing",
+        "state-speaking"
+    );
+
+
+    if (state === "listening") {
+
+        app.classList.add(
+            "state-listening"
+        );
+    }
+
+
+    if (state === "processing") {
+
+        app.classList.add(
+            "state-processing"
+        );
+    }
+
+
+    if (state === "speaking") {
+
+        app.classList.add(
+            "state-speaking"
+        );
+    }
+
+
+    statusElement.textContent =
+        text;
+}
+
+
+function showResponse(
+    text
+) {
+
+    responseElement.textContent =
+        text;
+
+    responseElement.classList.add(
+        "visible"
+    );
+}
+
+
+function hideResponse() {
+
+    responseElement.classList.remove(
+        "visible"
+    );
+}
+
+
+function getSpeechRecognition() {
+
+    return (
+        window.SpeechRecognition ||
+        window.webkitSpeechRecognition ||
+        null
+    );
+}
+
+
+function createRecognition() {
+
+    const Recognition =
+        getSpeechRecognition();
+
+
+    if (!Recognition) {
+
+        return null;
+    }
+
+
+    const instance =
+        new Recognition();
+
+
+    instance.lang =
+        "en-US";
+
+
+    instance.continuous =
+        false;
+
+
+    instance.interimResults =
+        false;
+
+
+    instance.maxAlternatives =
+        1;
+
+
+    return instance;
+}
+
+
+function cleanCommand(
+    text
+) {
+
+    if (!text) {
+
+        return "";
+    }
+
+
+    let cleaned =
+        text.trim();
+
+
+    cleaned =
+        cleaned.replace(
+            /^\s*sterling[\s,:-]*/i,
+            ""
+        );
+
+
+    return cleaned.trim();
+}
+
+
+function extractAfterWakeWord(
+    text
+) {
+
+    if (!text) {
+
+        return "";
+    }
+
+
+    const match =
+        text.match(
+            /\bsterling\b(.*)/i
+        );
+
+
+    if (!match) {
+
+        return "";
+    }
+
+
+    return match[1]
+        .replace(
+            /^[\s,:-]+/,
+            ""
+        )
+        .trim();
+}
+
+
+function stopWakeListener() {
+
+    if (wakeRestartTimer) {
+
+        clearTimeout(
+            wakeRestartTimer
+        );
+
+        wakeRestartTimer =
+            null;
+    }
+
+
+    if (wakeRecognition) {
+
+        try {
+
+            wakeRecognition.onend =
+                null;
+
+            wakeRecognition.stop();
+
+        } catch (error) {
+        }
+
+
+        wakeRecognition =
+            null;
+    }
+}
+
+
+function scheduleWakeRestart() {
+
+    if (wakeRestartTimer) {
+
+        return;
+    }
+
+
+    wakeRestartTimer =
+        setTimeout(
+            function() {
+
+                wakeRestartTimer =
+                    null;
+
+
+                if (
+                    !isProcessing &&
+                    !isSpeaking
+                ) {
+
+                    startWakeListener();
+                }
+
+            },
+            500
+        );
+}
+
+
+function startWakeListener() {
+
+    if (
+        isProcessing ||
+        isSpeaking
+    ) {
+
+        return;
+    }
+
+
+    stopWakeListener();
+
+
+    wakeRecognition =
+        createRecognition();
+
+
+    if (!wakeRecognition) {
+
+        systemStatus.textContent =
+            "VOICE UNSUPPORTED";
+
+
+        statusElement.textContent =
+            "USE CHROME OR EDGE";
+
+
+        micWarning.style.display =
+            "block";
+
+
+        return;
+    }
+
+
+    wakeRecognition.onstart =
+        function() {
+
+            systemStatus.textContent =
+                "LISTENING FOR WAKE WORD";
+
+
+            setState(
+                "standby",
+                "STANDBY — SAY STERLING"
+            );
+        };
+
+
+    wakeRecognition.onresult =
+        function(event) {
+
+            const result =
+                event.results[
+                    event.results.length - 1
+                ];
+
+
+            if (
+                !result ||
+                !result[0]
+            ) {
+
+                return;
+            }
+
+
+            const transcript =
+                result[0]
+                    .transcript
+                    .trim();
+
+
+            if (
+                !transcript
+                    .toLowerCase()
+                    .includes("sterling")
+            ) {
+
+                return;
+            }
+
+
+            stopWakeListener();
+
+
+            const command =
+                extractAfterWakeWord(
+                    transcript
+                );
+
+
+            if (command) {
+
+                sendCommand(
+                    command
+                );
+
+            } else {
+
+                activateSterling();
+            }
+        };
+
+
+    wakeRecognition.onerror =
+        function(event) {
+
+            if (
+                event.error ===
+                    "not-allowed" ||
+                event.error ===
+                    "service-not-allowed"
+            ) {
+
+                systemStatus.textContent =
+                    "MICROPHONE BLOCKED";
+
+
+                statusElement.textContent =
+                    "ALLOW MICROPHONE ACCESS";
+
+
+                micWarning.style.display =
+                    "block";
+
+
+                return;
+            }
+
+
+            scheduleWakeRestart();
+        };
+
+
+    wakeRecognition.onend =
+        function() {
+
+            if (
+                !isProcessing &&
+                !isSpeaking
+            ) {
+
+                scheduleWakeRestart();
+            }
+        };
+
+
+    try {
+
+        wakeRecognition.start();
+
+    } catch (error) {
+
+        scheduleWakeRestart();
+    }
+}
+
+
+function activateSterling() {
+
+    stopWakeListener();
+
+
+    setState(
+        "speaking",
+        "AWAITING COMMAND"
+    );
+
+
+    speak(
+        "Yes?",
+        function() {
+
+            startCommandListener();
+
+        }
+    );
+}
+
+
+function startCommandListener() {
+
+    stopWakeListener();
+
+
+    recognition =
+        createRecognition();
+
+
+    if (!recognition) {
+
+        statusElement.textContent =
+            "VOICE UNSUPPORTED";
+
+        return;
+    }
+
+
+    setState(
+        "listening",
+        "LISTENING"
+    );
+
+
+    recognition.onresult =
+        function(event) {
+
+            const result =
+                event.results[
+                    event.results.length - 1
+                ];
+
+
+            if (
+                !result ||
+                !result[0]
+            ) {
+
+                return;
+            }
+
+
+            const transcript =
+                result[0]
+                    .transcript
+                    .trim();
+
+
+            const command =
+                cleanCommand(
+                    transcript
+                );
+
+
+            if (!command) {
+
+                returnToStandby();
+
+                return;
+            }
+
+
+            try {
+
+                recognition.stop();
+
+            } catch (error) {
+            }
+
+
+            sendCommand(
+                command
+            );
+        };
+
+
+    recognition.onerror =
+        function(event) {
+
+            if (
+                event.error ===
+                    "not-allowed" ||
+                event.error ===
+                    "service-not-allowed"
+            ) {
+
+                micWarning.style.display =
+                    "block";
+
+
+                statusElement.textContent =
+                    "ALLOW MICROPHONE ACCESS";
+
+
+                return;
+            }
+
+
+            returnToStandby();
+        };
+
+
+    recognition.onend =
+        function() {
+
+            if (
+                !isProcessing &&
+                !isSpeaking &&
+                statusElement.textContent ===
+                    "LISTENING"
+            ) {
+
+                returnToStandby();
+            }
+        };
+
+
+    try {
+
+        recognition.start();
+
+    } catch (error) {
+
+        returnToStandby();
+    }
+}
+
+
+async function sendCommand(
+    command
+) {
+
+    if (
+        !command ||
+        isProcessing
+    ) {
+
+        return;
+    }
+
+
+    isProcessing =
+        true;
+
+
+    stopWakeListener();
+
+
+    if (recognition) {
+
+        try {
+
+            recognition.stop();
+
+        } catch (error) {
+        }
+
+
+        recognition =
+            null;
+    }
+
+
+    hideResponse();
+
+
+    setState(
+        "processing",
+        "PROCESSING"
+    );
+
+
+    systemStatus.textContent =
+        "STERLING IS THINKING";
+
+
+    try {
+
+        const url =
+            "/api/chat?prompt=" +
+            encodeURIComponent(
+                command
+            );
+
+
+        const response =
+            await fetch(
+                url
+            );
+
+
+        if (!response.ok) {
+
+            throw new Error(
+                "Server returned " +
+                response.status
+            );
+        }
+
+
+        const data =
+            await response.json();
+
+
+        const answer =
+            data.sterling_response ||
+            data.response ||
+            data.message ||
+            "I was unable to formulate a response.";
+
+
+        showResponse(
+            answer
+        );
+
+
+        isProcessing =
+            false;
+
+
+        speak(
+            answer,
+            function() {
+
+                returnToStandby();
+
+            }
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            error
+        );
+
+
+        const message =
+            "I encountered a connection problem.";
+
+
+        showResponse(
+            message
+        );
+
+
+        isProcessing =
+            false;
+
+
+        speak(
+            message,
+            function() {
+
+                returnToStandby();
+
+            }
+        );
+    }
+}
+
+
+function speak(
+    text,
+    onComplete
+) {
+
+    if (
+        !("speechSynthesis" in window)
+    ) {
+
+        if (onComplete) {
+
+            onComplete();
+        }
+
+        return;
+    }
+
+
+    isSpeaking =
+        true;
+
+
+    stopWakeListener();
+
+
+    window.speechSynthesis.cancel();
+
+
+    const utterance =
+        new SpeechSynthesisUtterance(
+            text
+        );
+
+
+    utterance.lang =
+        "en-US";
+
+
+    utterance.rate =
+        0.96;
+
+
+    utterance.pitch =
+        0.95;
+
+
+    utterance.volume =
+        1.0;
+
+
+    const voices =
+        window.speechSynthesis
+            .getVoices();
+
+
+    const preferredNames = [
+
+        "Microsoft Guy Online",
+
+        "Microsoft Ryan Online",
+
+        "Microsoft Christopher Online",
+
+        "Google US English",
+
+        "Google UK English Male",
+
+        "Daniel",
+
+        "Samantha"
+    ];
+
+
+    let selectedVoice =
+        null;
+
+
+    for (
+        const preferred
+        of preferredNames
+    ) {
+
+        selectedVoice =
+            voices.find(
+                voice =>
+                    voice.name
+                        .toLowerCase()
+                        .includes(
+                            preferred
+                                .toLowerCase()
+                        )
+            );
+
+
+        if (selectedVoice) {
+
+            break;
+        }
+    }
+
+
+    if (!selectedVoice) {
+
+        selectedVoice =
+            voices.find(
+                voice =>
+                    voice.lang ===
+                    "en-US"
+            );
+    }
+
+
+    if (!selectedVoice) {
+
+        selectedVoice =
+            voices.find(
+                voice =>
+                    voice.lang
+                        .startsWith(
+                            "en"
+                        )
+            );
+    }
+
+
+    if (selectedVoice) {
+
+        utterance.voice =
+            selectedVoice;
+    }
+
+
+    utterance.onstart =
+        function() {
+
+            setState(
+                "speaking",
+                "SPEAKING"
+            );
+
+
+            systemStatus.textContent =
+                "STERLING SPEAKING";
+        };
+
+
+    utterance.onend =
+        function() {
+
+            isSpeaking =
+                false;
+
+
+            if (onComplete) {
+
+                onComplete();
+            }
+        };
+
+
+    utterance.onerror =
+        function() {
+
+            isSpeaking =
+                false;
+
+
+            if (onComplete) {
+
+                onComplete();
+            }
+        };
+
+
+    window.speechSynthesis.speak(
+        utterance
+    );
+}
+
+
+function returnToStandby() {
+
+    isProcessing =
+        false;
+
+
+    isSpeaking =
+        false;
+
+
+    systemStatus.textContent =
+        "SYSTEM ONLINE";
+
+
+    setState(
+        "standby",
+        "STANDBY — SAY STERLING"
+    );
+
+
+    setTimeout(
+        function() {
+
+            if (
+                !isProcessing &&
+                !isSpeaking
+            ) {
+
+                startWakeListener();
+            }
+
+        },
+        700
+    );
+}
+
+
+function initialiseSterling() {
+
+    if (
+        !getSpeechRecognition()
+    ) {
+
+        systemStatus.textContent =
+            "VOICE UNSUPPORTED";
+
+
+        statusElement.textContent =
+            "USE CHROME OR EDGE";
+
+
+        micWarning.style.display =
+            "block";
+
+
+        return;
+    }
+
+
+    if (
+        "speechSynthesis"
+        in window
+    ) {
+
+        window.speechSynthesis
+            .getVoices();
+
+
+        window.speechSynthesis
+            .onvoiceschanged =
+            function() {
+
+                window.speechSynthesis
+                    .getVoices();
+
+            };
+    }
+
+
+    setTimeout(
+        function() {
+
+            startWakeListener();
+
+        },
+        700
+    );
+}
+
+
+window.addEventListener(
+    "load",
+    initialiseSterling
+);
+
+
+</script></body></html>
+"""============================================================
+
+HTTP ROUTES
+
+============================================================
+
+@app.get(
+"/",
+response_class=HTMLResponse
+)
+async def home():
+
+return HTMLResponse(
+    content=ORB_UI_HTML
+)
+
+@app.get("/api/chat")
+async def chat(
+prompt: str = Query(
+...,
+min_length=1
+)
+):
+
+response = generate_response(
+    prompt
+)
+
+return {
+    "sterling_response": response
+}
+
+@app.get("/api/status")
+async def status():
+
+return {
+    "status": "online",
+    "system": "STERLING",
+    "groq_configured": bool(
+        GROQ_API_KEY
+    ),
+    "gemini_configured": bool(
+        GEMINI_API_KEY
+    ),
+    "conversation_memory": len(
+        conversation_history
+    )
+}
+
+@app.get("/health")
+async def health():
+
+return {
+    "status": "healthy"
+}
+
+============================================================
+
+WEBSOCKET
+
+============================================================
+
+@app.websocket("/ws")
+async def websocket_endpoint(
+websocket: WebSocket
+):
+
+await websocket.accept()
+
+
+try:
+
+    while True:
+
+        data =
+            await websocket.receive_text()
+
+
+        response =
+            generate_response(
+                data
+            )
+
+
+        await websocket.send_json({
+
+            "sterling_response":
+                response
+
+        })
+
+
+except Exception as error:
+
+    print(
+        "WebSocket closed:",
+        error
+    )}
 
 @keyframes speaking {
 
