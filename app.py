@@ -1,3 +1,4 @@
+```python
 import os
 import json
 import requests
@@ -39,13 +40,15 @@ ORB_UI_HTML = """
         content="width=device-width, initial-scale=1.0"
     >
 
-    <title>STERLING Core</title>
+    <title>STERLING Command Tower</title>
+
 
     <style>
 
         * {
             box-sizing: border-box;
         }
+
 
         body {
 
@@ -79,15 +82,23 @@ ORB_UI_HTML = """
             height: 100vh;
 
             overflow: hidden;
+
+            transition:
+                background 0.5s ease;
         }
+
+
+        /* ====================================================
+           ORB CONTAINER
+           ==================================================== */
 
         .orb-container {
 
             position: relative;
 
-            width: 300px;
+            width: 320px;
 
-            height: 300px;
+            height: 320px;
 
             display: flex;
 
@@ -95,10 +106,13 @@ ORB_UI_HTML = """
 
             justify-content: center;
 
-            cursor: pointer;
-
             user-select: none;
         }
+
+
+        /* ====================================================
+           MAIN ORB
+           ==================================================== */
 
         .voice-orb {
 
@@ -131,6 +145,11 @@ ORB_UI_HTML = """
             z-index: 2;
         }
 
+
+        /* ====================================================
+           OUTER RINGS
+           ==================================================== */
+
         .orb-glow {
 
             position: absolute;
@@ -150,6 +169,7 @@ ORB_UI_HTML = """
 
             z-index: 1;
         }
+
 
         .orb-glow-two {
 
@@ -171,6 +191,11 @@ ORB_UI_HTML = """
             z-index: 1;
         }
 
+
+        /* ====================================================
+           NORMAL PULSE
+           ==================================================== */
+
         @keyframes pulse {
 
             0% {
@@ -183,6 +208,7 @@ ORB_UI_HTML = """
                     inset 0 0 35px rgba(255,255,255,0.3);
             }
 
+
             50% {
 
                 transform: scale(1.08);
@@ -193,6 +219,7 @@ ORB_UI_HTML = """
                     inset 0 0 45px rgba(255,255,255,0.4);
             }
 
+
             100% {
 
                 transform: scale(1);
@@ -202,7 +229,13 @@ ORB_UI_HTML = """
                     0 0 75px rgba(37,99,235,0.45),
                     inset 0 0 35px rgba(255,255,255,0.3);
             }
+
         }
+
+
+        /* ====================================================
+           RIPPLE
+           ==================================================== */
 
         @keyframes ripple {
 
@@ -213,33 +246,83 @@ ORB_UI_HTML = """
                 opacity: 0.9;
             }
 
+
             100% {
 
                 transform: scale(1.5);
 
                 opacity: 0;
             }
+
         }
+
+
+        /* ====================================================
+           LISTENING STATE
+           ==================================================== */
+
+        .listening {
+
+            background:
+                radial-gradient(
+                    circle,
+                    #34d399 0%,
+                    #059669 45%,
+                    #064e3b 100%
+                ) !important;
+
+            box-shadow:
+
+                0 0 50px #10b981,
+                0 0 110px rgba(16,185,129,0.7),
+                inset 0 0 40px rgba(255,255,255,0.35) !important;
+
+            animation:
+                listeningPulse 1s infinite ease-in-out !important;
+        }
+
+
+        @keyframes listeningPulse {
+
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.12);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+
+        }
+
+
+        /* ====================================================
+           PROCESSING STATE
+           ==================================================== */
 
         .processing {
 
             background:
                 radial-gradient(
                     circle,
-                    #f472b6 0%,
-                    #db2777 45%,
-                    #831843 100%
+                    #c084fc 0%,
+                    #7c3aed 45%,
+                    #3b0764 100%
                 ) !important;
 
             box-shadow:
 
-                0 0 50px #ec4899,
-                0 0 100px rgba(236,72,153,0.65),
-                inset 0 0 35px rgba(255,255,255,0.35) !important;
+                0 0 50px #8b5cf6,
+                0 0 110px rgba(139,92,246,0.7),
+                inset 0 0 40px rgba(255,255,255,0.35) !important;
 
             animation:
                 processingPulse 0.8s infinite ease-in-out !important;
         }
+
 
         @keyframes processingPulse {
 
@@ -254,30 +337,81 @@ ORB_UI_HTML = """
             100% {
                 transform: scale(1);
             }
+
         }
+
+
+        /* ====================================================
+           SPEAKING STATE
+           ==================================================== */
+
+        .speaking {
+
+            background:
+                radial-gradient(
+                    circle,
+                    #f8fafc 0%,
+                    #93c5fd 35%,
+                    #2563eb 75%,
+                    #1e3a8a 100%
+                ) !important;
+
+            box-shadow:
+
+                0 0 60px #93c5fd,
+                0 0 130px rgba(96,165,250,0.8),
+                inset 0 0 45px rgba(255,255,255,0.6) !important;
+
+            animation:
+                speakingPulse 0.65s infinite ease-in-out !important;
+        }
+
+
+        @keyframes speakingPulse {
+
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.1);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+
+        }
+
+
+        /* ====================================================
+           STATUS
+           ==================================================== */
 
         .status-container {
 
-            margin-top: 30px;
+            margin-top: 20px;
 
-            width: min(700px, 90%);
+            width: min(750px, 90%);
 
             text-align: center;
         }
+
 
         .status-text {
 
             font-size: 1.05rem;
 
-            letter-spacing: 4px;
+            letter-spacing: 5px;
 
             color:
-                rgba(255,255,255,0.85);
+                rgba(255,255,255,0.9);
 
             font-weight: 500;
 
             text-transform: uppercase;
         }
+
 
         .response-box {
 
@@ -296,11 +430,31 @@ ORB_UI_HTML = """
 
             min-height: 60px;
 
+            white-space: pre-wrap;
+
             transition:
                 opacity 0.3s ease;
-
-            white-space: pre-wrap;
         }
+
+
+        /* ====================================================
+           MICROPHONE STATUS
+           ==================================================== */
+
+        .mic-status {
+
+            margin-top: 15px;
+
+            font-size: 0.72rem;
+
+            letter-spacing: 2px;
+
+            color:
+                rgba(255,255,255,0.3);
+
+            text-transform: uppercase;
+        }
+
 
         .hint {
 
@@ -309,12 +463,17 @@ ORB_UI_HTML = """
             bottom: 25px;
 
             color:
-                rgba(255,255,255,0.3);
+                rgba(255,255,255,0.25);
 
-            font-size: 0.75rem;
+            font-size: 0.7rem;
 
-            letter-spacing: 1px;
+            letter-spacing: 2px;
         }
+
+
+        /* ====================================================
+           MOBILE
+           ==================================================== */
 
         @media (max-width: 600px) {
 
@@ -325,12 +484,14 @@ ORB_UI_HTML = """
                 height: 260px;
             }
 
+
             .voice-orb {
 
                 width: 130px;
 
                 height: 130px;
             }
+
 
             .status-text {
 
@@ -339,10 +500,12 @@ ORB_UI_HTML = """
                 letter-spacing: 3px;
             }
 
+
             .response-box {
 
                 font-size: 0.9rem;
             }
+
         }
 
     </style>
@@ -352,10 +515,12 @@ ORB_UI_HTML = """
 
 <body>
 
-    <div
-        class="orb-container"
-        id="interactionZone"
-    >
+
+    <!-- ======================================================
+         ORB
+         ====================================================== -->
+
+    <div class="orb-container">
 
         <div class="orb-glow-two"></div>
 
@@ -369,51 +534,673 @@ ORB_UI_HTML = """
     </div>
 
 
+    <!-- ======================================================
+         STATUS
+         ====================================================== -->
+
     <div class="status-container">
 
         <div
             class="status-text"
             id="statusLabel"
         >
-            STERLING ONLINE
+            INITIALISING
         </div>
+
 
         <div
             class="response-box"
             id="responseText"
         >
-            Tap the orb to communicate with STERLING.
+            Initialising STERLING voice interface...
+        </div>
+
+
+        <div
+            class="mic-status"
+            id="micStatus"
+        >
+            MICROPHONE INITIALISING
         </div>
 
     </div>
 
 
     <div class="hint">
-        STERLING COMMAND TOWER
+        SAY "STERLING" TO ACTIVATE
     </div>
 
 
     <script>
 
+
+        // ====================================================
+        // ELEMENTS
+        // ====================================================
+
         const orb =
-            document.getElementById("sterlingOrb");
+            document.getElementById(
+                "sterlingOrb"
+            );
+
 
         const statusLabel =
-            document.getElementById("statusLabel");
+            document.getElementById(
+                "statusLabel"
+            );
+
 
         const responseText =
-            document.getElementById("responseText");
+            document.getElementById(
+                "responseText"
+            );
 
 
-        async function sendCommand(prompt) {
+        const micStatus =
+            document.getElementById(
+                "micStatus"
+            );
+
+
+        // ====================================================
+        // STATE
+        // ====================================================
+
+        let recognition = null;
+
+        let activeMode = "wake";
+
+        let isSpeaking = false;
+
+        let isProcessing = false;
+
+        let wakeRestartTimer = null;
+
+        let commandRestartTimer = null;
+
+
+        // ====================================================
+        // BROWSER SUPPORT
+        // ====================================================
+
+        const SpeechRecognition =
+            window.SpeechRecognition ||
+            window.webkitSpeechRecognition;
+
+
+        if (!SpeechRecognition) {
+
+            statusLabel.innerText =
+                "VOICE UNSUPPORTED";
+
+            responseText.innerText =
+                "Use Google Chrome or Microsoft Edge for STERLING Voice Mode.";
+
+            micStatus.innerText =
+                "SPEECH RECOGNITION UNAVAILABLE";
+
+        }
+
+
+        // ====================================================
+        // SPEECH SYNTHESIS
+        // ====================================================
+
+        function speak(text, onComplete) {
+
+            if (!("speechSynthesis" in window)) {
+
+                if (onComplete) {
+                    onComplete();
+                }
+
+                return;
+            }
+
+
+            window.speechSynthesis.cancel();
+
+
+            const utterance =
+                new SpeechSynthesisUtterance(text);
+
+
+            utterance.rate = 0.95;
+
+            utterance.pitch = 0.92;
+
+            utterance.volume = 1.0;
+
+
+            const voices =
+                window.speechSynthesis.getVoices();
+
+
+            // Prefer a natural English voice.
+
+            const preferredVoice =
+                voices.find(
+                    voice =>
+                        voice.lang === "en-US"
+                        &&
+                        (
+                            voice.name
+                                .toLowerCase()
+                                .includes("natural")
+                            ||
+                            voice.name
+                                .toLowerCase()
+                                .includes("google")
+                            ||
+                            voice.name
+                                .toLowerCase()
+                                .includes("microsoft")
+                        )
+                )
+                ||
+                voices.find(
+                    voice =>
+                        voice.lang.startsWith("en")
+                );
+
+
+            if (preferredVoice) {
+
+                utterance.voice =
+                    preferredVoice;
+
+            }
+
+
+            utterance.onstart = () => {
+
+                isSpeaking = true;
+
+                orb.classList.remove(
+                    "listening",
+                    "processing"
+                );
+
+                orb.classList.add(
+                    "speaking"
+                );
+
+                statusLabel.innerText =
+                    "STERLING SPEAKING";
+
+            };
+
+
+            utterance.onend = () => {
+
+                isSpeaking = false;
+
+                orb.classList.remove(
+                    "speaking"
+                );
+
+
+                if (onComplete) {
+                    onComplete();
+                }
+
+            };
+
+
+            utterance.onerror = () => {
+
+                isSpeaking = false;
+
+                orb.classList.remove(
+                    "speaking"
+                );
+
+
+                if (onComplete) {
+                    onComplete();
+                }
+
+            };
+
+
+            window.speechSynthesis.speak(
+                utterance
+            );
+
+        }
+
+
+        // ====================================================
+        // CREATE RECOGNITION
+        // ====================================================
+
+        function createRecognition() {
+
+            if (!SpeechRecognition) {
+                return null;
+            }
+
+
+            const instance =
+                new SpeechRecognition();
+
+
+            instance.continuous = false;
+
+            instance.interimResults = true;
+
+            instance.lang = "en-US";
+
+            instance.maxAlternatives = 1;
+
+
+            return instance;
+
+        }
+
+
+        // ====================================================
+        // START WAKE LISTENER
+        // ====================================================
+
+        function startWakeListener() {
+
+            if (!SpeechRecognition) {
+                return;
+            }
+
+
+            if (isSpeaking || isProcessing) {
+                return;
+            }
+
+
+            activeMode = "wake";
+
+
+            recognition =
+                createRecognition();
+
+
+            if (!recognition) {
+                return;
+            }
+
+
+            recognition.onstart = () => {
+
+                statusLabel.innerText =
+                    "STANDBY";
+
+                responseText.innerText =
+                    'Listening for "STERLING"...';
+
+                micStatus.innerText =
+                    "MICROPHONE ACTIVE";
+
+                orb.classList.remove(
+                    "processing",
+                    "speaking"
+                );
+
+                orb.classList.add(
+                    "listening"
+                );
+
+            };
+
+
+            recognition.onresult =
+                event => {
+
+                    let transcript = "";
+
+
+                    for (
+                        let i = event.resultIndex;
+                        i < event.results.length;
+                        i++
+                    ) {
+
+                        transcript +=
+                            event.results[i][0]
+                                .transcript;
+
+                    }
+
+
+                    const lower =
+                        transcript
+                            .toLowerCase()
+                            .trim();
+
+
+                    if (
+                        lower.includes("sterling")
+                    ) {
+
+                        recognition.stop();
+
+
+                        activateSterling(
+                            transcript
+                        );
+
+                    }
+
+                };
+
+
+            recognition.onerror =
+                event => {
+
+                    console.log(
+                        "[STERLING WAKE]",
+                        event.error
+                    );
+
+                };
+
+
+            recognition.onend = () => {
+
+                orb.classList.remove(
+                    "listening"
+                );
+
+
+                if (
+                    activeMode === "wake"
+                    &&
+                    !isSpeaking
+                    &&
+                    !isProcessing
+                ) {
+
+                    clearTimeout(
+                        wakeRestartTimer
+                    );
+
+
+                    wakeRestartTimer =
+                        setTimeout(
+                            startWakeListener,
+                            500
+                        );
+
+                }
+
+            };
+
+
+            try {
+
+                recognition.start();
+
+            }
+
+            catch (error) {
+
+                console.log(
+                    "[STERLING]",
+                    error
+                );
+
+            }
+
+        }
+
+
+        // ====================================================
+        // WAKE WORD DETECTED
+        // ====================================================
+
+        function activateSterling(
+            originalTranscript
+        ) {
+
+            activeMode = "command";
+
+
+            responseText.innerText =
+                "Yes?";
+
+
+            statusLabel.innerText =
+                "AWAITING COMMAND";
+
+
+            orb.classList.remove(
+                "listening"
+            );
+
+
+            orb.classList.add(
+                "speaking"
+            );
+
+
+            speak(
+                "Yes?",
+                () => {
+
+                    orb.classList.remove(
+                        "speaking"
+                    );
+
+
+                    startCommandListener();
+
+                }
+            );
+
+        }
+
+
+        // ====================================================
+        // COMMAND LISTENER
+        // ====================================================
+
+        function startCommandListener() {
+
+            if (!SpeechRecognition) {
+                return;
+            }
+
+
+            if (isSpeaking || isProcessing) {
+                return;
+            }
+
+
+            activeMode = "command";
+
+
+            recognition =
+                createRecognition();
+
+
+            if (!recognition) {
+                return;
+            }
+
+
+            recognition.onstart = () => {
+
+                statusLabel.innerText =
+                    "LISTENING";
+
+
+                responseText.innerText =
+                    "I'm listening.";
+
+
+                micStatus.innerText =
+                    "COMMAND CHANNEL ACTIVE";
+
+
+                orb.classList.remove(
+                    "processing",
+                    "speaking"
+                );
+
+
+                orb.classList.add(
+                    "listening"
+                );
+
+            };
+
+
+            recognition.onresult =
+                event => {
+
+                    let transcript = "";
+
+
+                    for (
+                        let i = event.resultIndex;
+                        i < event.results.length;
+                        i++
+                    ) {
+
+                        transcript +=
+                            event.results[i][0]
+                                .transcript;
+
+                    }
+
+
+                    const finalResult =
+                        event.results[
+                            event.results.length - 1
+                        ].isFinal;
+
+
+                    if (finalResult) {
+
+                        recognition.stop();
+
+
+                        const command =
+                            cleanCommand(
+                                transcript
+                            );
+
+
+                        if (command) {
+
+                            sendCommand(
+                                command
+                            );
+
+                        }
+
+                        else {
+
+                            returnToStandby();
+
+                        }
+
+                    }
+
+                };
+
+
+            recognition.onerror =
+                event => {
+
+                    console.log(
+                        "[STERLING COMMAND]",
+                        event.error
+                    );
+
+                };
+
+
+            recognition.onend = () => {
+
+                orb.classList.remove(
+                    "listening"
+                );
+
+            };
+
+
+            try {
+
+                recognition.start();
+
+            }
+
+            catch (error) {
+
+                console.log(
+                    "[STERLING]",
+                    error
+                );
+
+            }
+
+        }
+
+
+        // ====================================================
+        // CLEAN COMMAND
+        // ====================================================
+
+        function cleanCommand(
+            transcript
+        ) {
+
+            let command =
+                transcript.trim();
+
+
+            command =
+                command.replace(
+                    /^sterling[,\s]*/i,
+                    ""
+                );
+
+
+            return command.trim();
+
+        }
+
+
+        // ====================================================
+        // SEND COMMAND TO BACKEND
+        // ====================================================
+
+        async function sendCommand(
+            prompt
+        ) {
+
+            isProcessing = true;
+
 
             statusLabel.innerText =
                 "PROCESSING";
 
+
             responseText.innerText =
                 "Consulting cognitive pipelines...";
 
-            orb.classList.add("processing");
+
+            micStatus.innerText =
+                "STERLING IS THINKING";
+
+
+            orb.classList.remove(
+                "listening",
+                "speaking"
+            );
+
+
+            orb.classList.add(
+                "processing"
+            );
 
 
             try {
@@ -429,6 +1216,7 @@ ORB_UI_HTML = """
                     throw new Error(
                         `HTTP ${response.status}`
                     );
+
                 }
 
 
@@ -445,15 +1233,27 @@ ORB_UI_HTML = """
                     throw new Error(
                         "STERLING returned no response."
                     );
+
                 }
-
-
-                statusLabel.innerText =
-                    "STERLING ONLINE";
 
 
                 responseText.innerText =
                     sterlingResponse;
+
+
+                isProcessing = false;
+
+
+                // Speak the response.
+
+                speak(
+                    sterlingResponse,
+                    () => {
+
+                        returnToStandby();
+
+                    }
+                );
 
 
             }
@@ -466,41 +1266,133 @@ ORB_UI_HTML = """
                 );
 
 
+                isProcessing = false;
+
+
                 statusLabel.innerText =
                     "CORE ERROR";
 
 
                 responseText.innerText =
-                    "Unable to reach STERLING Command Tower.";
-            }
+                    "I was unable to reach the Command Tower.";
 
-            finally {
 
-                orb.classList.remove(
-                    "processing"
+                speak(
+                    "I'm sorry. I was unable to reach the Command Tower.",
+                    () => {
+
+                        returnToStandby();
+
+                    }
                 );
+
             }
+
         }
 
 
-        orb.addEventListener(
-            "click",
-            async () => {
+        // ====================================================
+        // RETURN TO STANDBY
+        // ====================================================
 
-                const prompt =
-                    window.prompt(
-                        "Speak to STERLING:"
-                    );
+        function returnToStandby() {
 
+            isProcessing = false;
 
-                if (!prompt) {
-                    return;
-                }
+            isSpeaking = false;
+
+            activeMode = "wake";
 
 
-                await sendCommand(prompt);
+            orb.classList.remove(
+                "processing",
+                "speaking",
+                "listening"
+            );
+
+
+            statusLabel.innerText =
+                "STERLING ONLINE";
+
+
+            responseText.innerText =
+                'Say "STERLING" whenever you need me.';
+
+
+            micStatus.innerText =
+                "AWAITING WAKE WORD";
+
+
+            clearTimeout(
+                wakeRestartTimer
+            );
+
+
+            wakeRestartTimer =
+                setTimeout(
+                    startWakeListener,
+                    700
+                );
+
+        }
+
+
+        // ====================================================
+        // INITIALISE
+        // ====================================================
+
+        function initialiseSterling() {
+
+            if (!SpeechRecognition) {
+                return;
             }
-        );
+
+
+            statusLabel.innerText =
+                "STERLING ONLINE";
+
+
+            responseText.innerText =
+                'Say "STERLING" to activate.';
+
+
+            micStatus.innerText =
+                "MICROPHONE READY";
+
+
+            setTimeout(
+                startWakeListener,
+                1000
+            );
+
+        }
+
+
+        // ====================================================
+        // LOAD VOICES
+        // ====================================================
+
+        if (
+            "speechSynthesis" in window
+        ) {
+
+            window.speechSynthesis
+                .onvoiceschanged = () => {
+
+                    window.speechSynthesis
+                        .getVoices();
+
+                };
+
+        }
+
+
+        // ====================================================
+        // START STERLING
+        // ====================================================
+
+        initialiseSterling();
+
 
     </script>
 
@@ -517,10 +1409,14 @@ ORB_UI_HTML = """
 class ConnectionManager:
 
     def __init__(self):
+
         self.active_connections: list[WebSocket] = []
 
 
-    async def connect(self, websocket: WebSocket):
+    async def connect(
+        self,
+        websocket: WebSocket
+    ):
 
         await websocket.accept()
 
@@ -533,7 +1429,10 @@ class ConnectionManager:
         )
 
 
-    def disconnect(self, websocket: WebSocket):
+    def disconnect(
+        self,
+        websocket: WebSocket
+    ):
 
         if websocket in self.active_connections:
 
@@ -546,9 +1445,13 @@ class ConnectionManager:
         )
 
 
-    async def send_command(self, message: dict):
+    async def send_command(
+        self,
+        message: dict
+    ):
 
         dead_connections = []
+
 
         for connection in self.active_connections:
 
@@ -576,6 +1479,35 @@ manager = ConnectionManager()
 
 
 # ============================================================
+# CONVERSATION MEMORY
+# ============================================================
+
+conversation_history = []
+
+
+MAX_HISTORY = 12
+
+
+def add_to_memory(
+    role,
+    content
+):
+
+    conversation_history.append({
+
+        "role": role,
+
+        "content": content
+
+    })
+
+
+    while len(conversation_history) > MAX_HISTORY:
+
+        conversation_history.pop(0)
+
+
+# ============================================================
 # API KEY CLEANER
 # ============================================================
 
@@ -583,6 +1515,7 @@ def clean_api_key(key):
 
     if not key:
         return None
+
 
     return (
         str(key)
@@ -602,7 +1535,9 @@ def get_groq_model():
         GROQ_API_KEY
     )
 
+
     if not api_key:
+
         return None
 
 
@@ -622,9 +1557,13 @@ def get_groq_model():
 
 
         response = requests.get(
+
             url,
+
             headers=headers,
+
             timeout=10
+
         )
 
 
@@ -661,6 +1600,7 @@ def get_groq_model():
 
 
         if not available_ids:
+
             return None
 
 
@@ -784,27 +1724,49 @@ def ask_groq(
         }
 
 
+        messages = [
+
+            {
+                "role":
+                    "system",
+
+                "content":
+                    system_instruction
+
+            }
+
+        ]
+
+
+        messages.extend(
+            conversation_history
+        )
+
+
+        messages.append({
+
+            "role":
+                "user",
+
+            "content":
+                user_prompt
+
+        })
+
+
         data = {
 
-            "model": model,
+            "model":
+                model,
 
-            "messages": [
+            "messages":
+                messages,
 
-                {
-                    "role": "system",
-                    "content": system_instruction
-                },
+            "temperature":
+                0.45,
 
-                {
-                    "role": "user",
-                    "content": user_prompt
-                }
-
-            ],
-
-            "temperature": 0.3,
-
-            "max_tokens": 1000
+            "max_tokens":
+                1000
 
         }
 
@@ -817,7 +1779,7 @@ def ask_groq(
 
             headers=headers,
 
-            timeout=20
+            timeout=30
 
         )
 
@@ -928,6 +1890,47 @@ def ask_gemini(
         }
 
 
+        contents = []
+
+
+        for message in conversation_history:
+
+            contents.append({
+
+                "role":
+                    "user"
+                    if message["role"] == "user"
+                    else "model",
+
+                "parts": [
+
+                    {
+                        "text":
+                            message["content"]
+                    }
+
+                ]
+
+            })
+
+
+        contents.append({
+
+            "role":
+                "user",
+
+            "parts": [
+
+                {
+                    "text":
+                        user_prompt
+                }
+
+            ]
+
+        })
+
+
         data = {
 
             "system_instruction": {
@@ -943,25 +1946,8 @@ def ask_gemini(
 
             },
 
-            "contents": [
-
-                {
-
-                    "role":
-                        "user",
-
-                    "parts": [
-
-                        {
-                            "text":
-                                user_prompt
-                        }
-
-                    ]
-
-                }
-
-            ]
+            "contents":
+                contents
 
         }
 
@@ -976,7 +1962,7 @@ def ask_gemini(
 
             headers=headers,
 
-            timeout=20
+            timeout=30
 
         )
 
@@ -1065,25 +2051,47 @@ def ask_sterling_brain(
         "You are STERLING, an advanced autonomous "
         "digital butler and command system. "
 
+        "You are inspired by the concept of an "
+        "elite cinematic AI butler, but you are your "
+        "own distinct personality. "
+
         "Your personality is calm, intelligent, "
-        "precise, professional and composed. "
+        "confident, articulate, professional and composed. "
 
-        "Interpret natural-language commands intelligently. "
+        "Speak naturally, like a highly capable "
+        "personal assistant speaking directly to your employer. "
 
-        "Respond concisely unless the user asks for detail. "
+        "You may occasionally use subtle dry wit when appropriate, "
+        "but never become childish, overly enthusiastic or robotic. "
 
-        "You are the cognitive layer of a larger command "
-        "and automation system. "
+        "Do not constantly say 'Certainly', 'Of course', "
+        "or 'How may I assist you today?' "
 
-        "Do not claim to have performed an action unless "
-        "the system has actually performed it. "
+        "Vary your language naturally. "
 
-        "If a command requires an external action that "
-        "has not yet been connected, explain what would "
-        "need to happen rather than pretending it happened. "
+        "Keep ordinary spoken responses concise. "
 
-        "If the user asks to watch media, identify the "
-        "platform, show name and profile if provided."
+        "Do not write enormous explanations unless the user asks "
+        "for detail. "
+
+        "Understand context from previous messages. "
+
+        "If the user asks a follow-up question, understand "
+        "what they are referring to. "
+
+        "You are currently the cognitive layer of a larger "
+        "command and automation system. "
+
+        "Do not claim that you performed an external action "
+        "unless the system actually performed it. "
+
+        "If an action is not connected yet, clearly state that "
+        "you cannot execute it yet rather than pretending. "
+
+        "Address the user naturally and respectfully. "
+
+        "Your responses will be spoken aloud, so avoid excessive "
+        "formatting, tables and unnecessary symbols."
 
     )
 
@@ -1106,10 +2114,23 @@ def ask_sterling_brain(
 
     if groq_response:
 
+        add_to_memory(
+            "user",
+            user_voice_prompt
+        )
+
+
+        add_to_memory(
+            "assistant",
+            groq_response
+        )
+
+
         print(
             "[STERLING] "
             "Primary cognitive response: GROQ"
         )
+
 
         return groq_response
 
@@ -1132,10 +2153,23 @@ def ask_sterling_brain(
 
     if gemini_response:
 
+        add_to_memory(
+            "user",
+            user_voice_prompt
+        )
+
+
+        add_to_memory(
+            "assistant",
+            gemini_response
+        )
+
+
         print(
             "[STERLING] "
             "Fallback cognitive response: GEMINI"
         )
+
 
         return gemini_response
 
@@ -1144,7 +2178,7 @@ def ask_sterling_brain(
 
 
     # ========================================================
-    # FAILURE REPORT
+    # FAILURE
     # ========================================================
 
     print(
@@ -1155,7 +2189,8 @@ def ask_sterling_brain(
 
     return (
 
-        "STERLING Core Pipeline Interruption.\n\n"
+        "I'm sorry. My cognitive pipelines are "
+        "currently unavailable.\n\n"
 
         + json.dumps(
             diagnostics,
@@ -1259,3 +2294,4 @@ async def websocket_endpoint(
         manager.disconnect(
             websocket
         )
+```
