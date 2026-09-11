@@ -81,11 +81,6 @@ ORB_UI_HTML = """
             overflow: hidden;
         }
 
-
-        /* ====================================================
-           ORB CONTAINER
-           ==================================================== */
-
         .orb-container {
 
             position: relative;
@@ -104,11 +99,6 @@ ORB_UI_HTML = """
 
             user-select: none;
         }
-
-
-        /* ====================================================
-           MAIN ORB
-           ==================================================== */
 
         .voice-orb {
 
@@ -141,11 +131,6 @@ ORB_UI_HTML = """
             z-index: 2;
         }
 
-
-        /* ====================================================
-           ORB OUTER GLOW
-           ==================================================== */
-
         .orb-glow {
 
             position: absolute;
@@ -166,7 +151,6 @@ ORB_UI_HTML = """
             z-index: 1;
         }
 
-
         .orb-glow-two {
 
             position: absolute;
@@ -186,11 +170,6 @@ ORB_UI_HTML = """
 
             z-index: 1;
         }
-
-
-        /* ====================================================
-           ANIMATIONS
-           ==================================================== */
 
         @keyframes pulse {
 
@@ -225,7 +204,6 @@ ORB_UI_HTML = """
             }
         }
 
-
         @keyframes ripple {
 
             0% {
@@ -242,11 +220,6 @@ ORB_UI_HTML = """
                 opacity: 0;
             }
         }
-
-
-        /* ====================================================
-           PROCESSING STATE
-           ==================================================== */
 
         .processing {
 
@@ -268,7 +241,6 @@ ORB_UI_HTML = """
                 processingPulse 0.8s infinite ease-in-out !important;
         }
 
-
         @keyframes processingPulse {
 
             0% {
@@ -284,11 +256,6 @@ ORB_UI_HTML = """
             }
         }
 
-
-        /* ====================================================
-           STATUS
-           ==================================================== */
-
         .status-container {
 
             margin-top: 30px;
@@ -297,7 +264,6 @@ ORB_UI_HTML = """
 
             text-align: center;
         }
-
 
         .status-text {
 
@@ -312,7 +278,6 @@ ORB_UI_HTML = """
 
             text-transform: uppercase;
         }
-
 
         .response-box {
 
@@ -333,8 +298,9 @@ ORB_UI_HTML = """
 
             transition:
                 opacity 0.3s ease;
-        }
 
+            white-space: pre-wrap;
+        }
 
         .hint {
 
@@ -349,11 +315,6 @@ ORB_UI_HTML = """
 
             letter-spacing: 1px;
         }
-
-
-        /* ====================================================
-           MOBILE
-           ==================================================== */
 
         @media (max-width: 600px) {
 
@@ -391,19 +352,14 @@ ORB_UI_HTML = """
 
 <body>
 
-
     <div
         class="orb-container"
         id="interactionZone"
     >
 
-        <div
-            class="orb-glow-two"
-        ></div>
+        <div class="orb-glow-two"></div>
 
-        <div
-            class="orb-glow"
-        ></div>
+        <div class="orb-glow"></div>
 
         <div
             class="voice-orb"
@@ -421,7 +377,6 @@ ORB_UI_HTML = """
         >
             STERLING ONLINE
         </div>
-
 
         <div
             class="response-box"
@@ -441,24 +396,14 @@ ORB_UI_HTML = """
     <script>
 
         const orb =
-            document.getElementById(
-                "sterlingOrb"
-            );
+            document.getElementById("sterlingOrb");
 
         const statusLabel =
-            document.getElementById(
-                "statusLabel"
-            );
+            document.getElementById("statusLabel");
 
         const responseText =
-            document.getElementById(
-                "responseText"
-            );
+            document.getElementById("responseText");
 
-
-        /* ====================================================
-           SEND COMMAND
-           ==================================================== */
 
         async function sendCommand(prompt) {
 
@@ -468,9 +413,7 @@ ORB_UI_HTML = """
             responseText.innerText =
                 "Consulting cognitive pipelines...";
 
-            orb.classList.add(
-                "processing"
-            );
+            orb.classList.add("processing");
 
 
             try {
@@ -529,8 +472,6 @@ ORB_UI_HTML = """
 
                 responseText.innerText =
                     "Unable to reach STERLING Command Tower.";
-
-
             }
 
             finally {
@@ -538,15 +479,9 @@ ORB_UI_HTML = """
                 orb.classList.remove(
                     "processing"
                 );
-
             }
-
         }
 
-
-        /* ====================================================
-           ORB INTERACTION
-           ==================================================== */
 
         orb.addEventListener(
             "click",
@@ -559,16 +494,11 @@ ORB_UI_HTML = """
 
 
                 if (!prompt) {
-
                     return;
-
                 }
 
 
-                await sendCommand(
-                    prompt
-                );
-
+                await sendCommand(prompt);
             }
         );
 
@@ -587,14 +517,10 @@ ORB_UI_HTML = """
 class ConnectionManager:
 
     def __init__(self):
-
         self.active_connections: list[WebSocket] = []
 
 
-    async def connect(
-        self,
-        websocket: WebSocket
-    ):
+    async def connect(self, websocket: WebSocket):
 
         await websocket.accept()
 
@@ -603,15 +529,11 @@ class ConnectionManager:
         )
 
         print(
-            "[STERLING] "
-            "New network bridge established."
+            "[STERLING] New network bridge established."
         )
 
 
-    def disconnect(
-        self,
-        websocket: WebSocket
-    ):
+    def disconnect(self, websocket: WebSocket):
 
         if websocket in self.active_connections:
 
@@ -620,20 +542,33 @@ class ConnectionManager:
             )
 
         print(
-            "[STERLING] "
-            "Network bridge disconnected."
+            "[STERLING] Network bridge disconnected."
         )
 
 
-    async def send_command(
-        self,
-        message: dict
-    ):
+    async def send_command(self, message: dict):
+
+        dead_connections = []
 
         for connection in self.active_connections:
 
-            await connection.send_text(
-                json.dumps(message)
+            try:
+
+                await connection.send_text(
+                    json.dumps(message)
+                )
+
+            except Exception:
+
+                dead_connections.append(
+                    connection
+                )
+
+
+        for connection in dead_connections:
+
+            self.disconnect(
+                connection
             )
 
 
@@ -647,9 +582,7 @@ manager = ConnectionManager()
 def clean_api_key(key):
 
     if not key:
-
         return None
-
 
     return (
         str(key)
@@ -665,21 +598,19 @@ def clean_api_key(key):
 
 def get_groq_model():
 
-    api_key =
-        clean_api_key(
-            GROQ_API_KEY
-        )
-
+    api_key = clean_api_key(
+        GROQ_API_KEY
+    )
 
     if not api_key:
-
         return None
 
 
     try:
 
-        url =
+        url = (
             "https://api.groq.com/openai/v1/models"
+        )
 
 
         headers = {
@@ -690,12 +621,11 @@ def get_groq_model():
         }
 
 
-        response =
-            requests.get(
-                url,
-                headers=headers,
-                timeout=10
-            )
+        response = requests.get(
+            url,
+            headers=headers,
+            timeout=10
+        )
 
 
         if response.status_code != 200:
@@ -703,21 +633,20 @@ def get_groq_model():
             print(
                 "[STERLING] "
                 f"Groq model discovery failed: "
-                f"{response.status_code}"
+                f"{response.status_code} "
+                f"{response.text}"
             )
 
             return None
 
 
-        result =
-            response.json()
+        result = response.json()
 
 
-        models =
-            result.get(
-                "data",
-                []
-            )
+        models = result.get(
+            "data",
+            []
+        )
 
 
         available_ids = [
@@ -732,11 +661,8 @@ def get_groq_model():
 
 
         if not available_ids:
-
             return None
 
-
-        # Preferred models.
 
         preferred_models = [
 
@@ -765,12 +691,9 @@ def get_groq_model():
                 return model
 
 
-        # Generic fallback.
-
         for model in available_ids:
 
-            lowered =
-                model.lower()
+            lowered = model.lower()
 
 
             if any(
@@ -818,10 +741,9 @@ def ask_groq(
     user_prompt
 ):
 
-    api_key =
-        clean_api_key(
-            GROQ_API_KEY
-        )
+    api_key = clean_api_key(
+        GROQ_API_KEY
+    )
 
 
     if not api_key:
@@ -834,8 +756,7 @@ def ask_groq(
 
     try:
 
-        model =
-            get_groq_model()
+        model = get_groq_model()
 
 
         if not model:
@@ -846,8 +767,10 @@ def ask_groq(
             )
 
 
-        url =
-            "https://api.groq.com/openai/v1/chat/completions"
+        url = (
+            "https://api.groq.com/openai/v1/"
+            "chat/completions"
+        )
 
 
         headers = {
@@ -868,48 +791,35 @@ def ask_groq(
             "messages": [
 
                 {
-
-                    "role":
-                        "system",
-
-                    "content":
-                        system_instruction
-
+                    "role": "system",
+                    "content": system_instruction
                 },
 
                 {
-
-                    "role":
-                        "user",
-
-                    "content":
-                        user_prompt
-
+                    "role": "user",
+                    "content": user_prompt
                 }
 
             ],
 
-            "temperature":
-                0.3,
+            "temperature": 0.3,
 
-            "max_tokens":
-                1000
+            "max_tokens": 1000
 
         }
 
 
-        response =
-            requests.post(
+        response = requests.post(
 
-                url,
+            url,
 
-                json=data,
+            json=data,
 
-                headers=headers,
+            headers=headers,
 
-                timeout=20
+            timeout=20
 
-            )
+        )
 
 
         if response.status_code != 200:
@@ -924,15 +834,13 @@ def ask_groq(
             )
 
 
-        result =
-            response.json()
+        result = response.json()
 
 
-        choices =
-            result.get(
-                "choices",
-                []
-            )
+        choices = result.get(
+            "choices",
+            []
+        )
 
 
         if not choices:
@@ -943,12 +851,11 @@ def ask_groq(
             )
 
 
-        content =
-            choices[0][
-                "message"
-            ].get(
-                "content"
-            )
+        content = (
+            choices[0]
+            .get("message", {})
+            .get("content")
+        )
 
 
         if not content:
@@ -982,10 +889,9 @@ def ask_gemini(
     user_prompt
 ):
 
-    api_key =
-        clean_api_key(
-            GEMINI_API_KEY
-        )
+    api_key = clean_api_key(
+        GEMINI_API_KEY
+    )
 
 
     if not api_key:
@@ -1029,10 +935,8 @@ def ask_gemini(
                 "parts": [
 
                     {
-
                         "text":
                             system_instruction
-
                     }
 
                 ]
@@ -1049,10 +953,8 @@ def ask_gemini(
                     "parts": [
 
                         {
-
                             "text":
                                 user_prompt
-
                         }
 
                     ]
@@ -1064,20 +966,19 @@ def ask_gemini(
         }
 
 
-        response =
-            requests.post(
+        response = requests.post(
 
-                url,
+            url,
 
-                json=data,
+            json=data,
 
-                params=params,
+            params=params,
 
-                headers=headers,
+            headers=headers,
 
-                timeout=20
+            timeout=20
 
-            )
+        )
 
 
         if response.status_code != 200:
@@ -1092,15 +993,13 @@ def ask_gemini(
             )
 
 
-        result =
-            response.json()
+        result = response.json()
 
 
-        candidates =
-            result.get(
-                "candidates",
-                []
-            )
+        candidates = result.get(
+            "candidates",
+            []
+        )
 
 
         if not candidates:
@@ -1111,14 +1010,11 @@ def ask_gemini(
             )
 
 
-        parts =
-            candidates[0].get(
-                "content",
-                {}
-            ).get(
-                "parts",
-                []
-            )
+        parts = (
+            candidates[0]
+            .get("content", {})
+            .get("parts", [])
+        )
 
 
         if not parts:
@@ -1129,10 +1025,9 @@ def ask_gemini(
             )
 
 
-        text =
-            parts[0].get(
-                "text"
-            )
+        text = parts[0].get(
+            "text"
+        )
 
 
         if not text:
@@ -1164,7 +1059,6 @@ def ask_gemini(
 def ask_sterling_brain(
     user_voice_prompt: str
 ) -> str:
-
 
     system_instruction = (
 
@@ -1220,9 +1114,7 @@ def ask_sterling_brain(
         return groq_response
 
 
-    diagnostics[
-        "groq_error"
-    ] = groq_error
+    diagnostics["groq_error"] = groq_error
 
 
     # ========================================================
@@ -1248,9 +1140,7 @@ def ask_sterling_brain(
         return gemini_response
 
 
-    diagnostics[
-        "gemini_error"
-    ] = gemini_error
+    diagnostics["gemini_error"] = gemini_error
 
 
     # ========================================================
@@ -1299,10 +1189,9 @@ def chat_endpoint(
     prompt: str
 ):
 
-    response =
-        ask_sterling_brain(
-            prompt
-        )
+    response = ask_sterling_brain(
+        prompt
+    )
 
 
     return {
@@ -1332,14 +1221,12 @@ async def websocket_endpoint(
 
         while True:
 
-            data =
-                await websocket.receive_text()
+            data = await websocket.receive_text()
 
 
-            response =
-                ask_sterling_brain(
-                    data
-                )
+            response = ask_sterling_brain(
+                data
+            )
 
 
             await websocket.send_text(
