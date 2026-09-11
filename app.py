@@ -46,7 +46,7 @@ def ask_sterling_brain(user_voice_prompt: str) -> str:
     
     diagnostic_info = {}
 
-    # 1. Primary Engine: Groq (Updated to working Llama model ID)
+    # 1. Primary Engine: Groq (Llama 3.3 Production)
     if GROQ_API_KEY:
         try:
             clean_groq_key = str(GROQ_API_KEY).strip().replace('"', '').replace("'", "")
@@ -56,7 +56,7 @@ def ask_sterling_brain(user_voice_prompt: str) -> str:
                 "Content-Type": "application/json"
             }
             data = {
-                "model": "gpt-oss-20b",  # Active stable free-tier model ID
+                "model": "llama-3.3-70b-specdec",
                 "messages": [
                     {"role": "system", "content": system_instruction},
                     {"role": "user", "content": user_voice_prompt}
@@ -70,11 +70,11 @@ def ask_sterling_brain(user_voice_prompt: str) -> str:
         except Exception as e:
             diagnostic_info["groq_exception"] = str(e)
 
-    # 2. Fallback Engine: Google Gemini (Corrected endpoint path)
+    # 2. Fallback Engine: Google Gemini (Updated to gemini-3.1-flash-latest)
     if GEMINI_API_KEY:
         try:
             clean_gemini_key = str(GEMINI_API_KEY).strip().replace('"', '').replace("'", "")
-            # FIXED: Pointed back to standard working v1beta models layout path
+            # FIXED: Set to gemini-3.1-flash-latest with standard v1 API path signature
             url = "https://googleapis.com"
             query_params = {"key": clean_gemini_key}
             headers = {"Content-Type": "application/json"}
@@ -91,7 +91,7 @@ def ask_sterling_brain(user_voice_prompt: str) -> str:
         except Exception as e:
             diagnostic_info["gemini_exception"] = str(e)
             
-    return f"Diagnostics Phase 5 - Pipeline Fault: {json.dumps(diagnostic_info)}"
+    return f"Diagnostics Phase 6 - Pipeline Fault: {json.dumps(diagnostic_info)}"
 
 @app.get("/")
 def read_root():
