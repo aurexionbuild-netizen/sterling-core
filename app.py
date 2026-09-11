@@ -56,7 +56,7 @@ def ask_sterling_brain(user_voice_prompt: str) -> str:
                 "Content-Type": "application/json"
             }
             data = {
-                "model": "gemma2-9b-it",  # Active stable free-tier model ID
+                "model": "gpt-oss-20b",  # Active stable free-tier model ID
                 "messages": [
                     {"role": "system", "content": system_instruction},
                     {"role": "user", "content": user_voice_prompt}
