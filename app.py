@@ -5,11 +5,11 @@ from fastapi import FastAPI, Query, WebSocket
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-============================================================
+# ============================================================
 
-STERLING COMMAND TOWER
+# STERLING COMMAND TOWER
 
-============================================================
+# ============================================================
 
 app = FastAPI(
 title="STERLING Command Tower",
@@ -19,32 +19,33 @@ version="1.0.0"
 
 app.add_middleware(
 CORSMiddleware,
-allow_origins=[""],
+allow_origins=["*"],
 allow_credentials=True,
-allow_methods=[""],
+allow_methods=["*"],
 allow_headers=["*"],
 )
 
-============================================================
+# ============================================================
 
-ENVIRONMENT
+# ENVIRONMENT
 
-============================================================
+# ============================================================
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 
-============================================================
+# ============================================================
 
-CONVERSATION MEMORY
+# CONVERSATION MEMORY
 
-============================================================
+# ============================================================
 
 conversation_history = []
 
 MAX_HISTORY = 12
 
 def add_to_memory(role, content):
+
 
 conversation_history.append({
     "role": role,
@@ -54,11 +55,12 @@ conversation_history.append({
 if len(conversation_history) > MAX_HISTORY:
     del conversation_history[:-MAX_HISTORY]
 
-============================================================
 
-STERLING PERSONALITY
+# ============================================================
 
-============================================================
+# STERLING PERSONALITY
+
+# ============================================================
 
 SYSTEM_INSTRUCTION = """
 You are STERLING, an advanced personal AI command system and digital butler.
@@ -68,15 +70,15 @@ but you are your own distinct system.
 
 Your characteristics:
 
-- Calm
-- Intelligent
-- Confident
-- Articulate
-- Professional
-- Composed
-- Helpful
-- Occasionally witty when appropriate
-- Natural and conversational
+* Calm
+* Intelligent
+* Confident
+* Articulate
+* Professional
+* Composed
+* Helpful
+* Occasionally witty when appropriate
+* Natural and conversational
 
 You are speaking directly to your user.
 
@@ -111,15 +113,16 @@ When appropriate, address the user naturally without overusing their name.
 Your goal is to feel like a genuine command-center AI rather than a generic chatbot.
 """
 
-============================================================
+# ============================================================
 
-GROQ MODEL DISCOVERY
+# GROQ MODEL DISCOVERY
 
-============================================================
+# ============================================================
 
 groq_model_cache = None
 
 def get_groq_model():
+
 
 global groq_model_cache
 
@@ -236,13 +239,15 @@ except Exception as error:
 
 return None
 
-============================================================
 
-GROQ AI
+# ============================================================
 
-============================================================
+# GROQ AI
+
+# ============================================================
 
 def ask_groq(user_prompt):
+
 
 if not GROQ_API_KEY:
     return None
@@ -327,13 +332,15 @@ except Exception as error:
 
     return None
 
-============================================================
 
-GEMINI FALLBACK
+# ============================================================
 
-============================================================
+# GEMINI FALLBACK
+
+# ============================================================
 
 def ask_gemini(user_prompt):
+
 
 if not GEMINI_API_KEY:
     return None
@@ -448,13 +455,15 @@ except Exception as error:
 
     return None
 
-============================================================
 
-AI RESPONSE ENGINE
+# ============================================================
 
-============================================================
+# AI RESPONSE ENGINE
+
+# ============================================================
 
 def generate_response(user_prompt):
+
 
 user_prompt = user_prompt.strip()
 
@@ -498,21 +507,32 @@ add_to_memory(
 
 return answer
 
-============================================================
 
-STERLING WEB INTERFACE
+# ============================================================
 
-============================================================
+# STERLING WEB INTERFACE
+
+# ============================================================
 
 ORB_UI_HTML = r"""
 
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
 name="viewport"
 content="width=device-width, initial-scale=1.0"
 
-«»
+>
 
-<title>STERLING Command Tower</title><style>
+<title>STERLING Command Tower</title>
+
+<style>
 
 * {
     box-sizing: border-box;
@@ -961,7 +981,16 @@ body {
     }
 }
 
-</style></head><body><div id="app"><div class="top-label">
+</style>
+
+</head>
+
+<body>
+
+<div id="app">
+
+```
+<div class="top-label">
     STERLING
 </div>
 
@@ -1021,7 +1050,10 @@ body {
     STERLING COMMAND TOWER
 </div>
 
-</div><script>
+
+</div>
+
+<script>
 
 
 let recognition = null;
@@ -2011,12 +2043,18 @@ window.addEventListener(
 );
 
 
-</script></body></html>
-"""============================================================
+</script>
 
-HTTP ROUTES
+</body>
 
-============================================================
+</html>
+
+
+# ============================================================
+
+# HTTP ROUTES
+
+# ============================================================
 
 @app.get(
 "/",
@@ -2024,9 +2062,11 @@ response_class=HTMLResponse
 )
 async def home():
 
+
 return HTMLResponse(
     content=ORB_UI_HTML
 )
+
 
 @app.get("/api/chat")
 async def chat(
@@ -2036,6 +2076,7 @@ min_length=1
 )
 ):
 
+
 response = generate_response(
     prompt
 )
@@ -2044,8 +2085,10 @@ return {
     "sterling_response": response
 }
 
+
 @app.get("/api/status")
 async def status():
+
 
 return {
     "status": "online",
@@ -2061,23 +2104,27 @@ return {
     )
 }
 
+
 @app.get("/health")
 async def health():
+
 
 return {
     "status": "healthy"
 }
 
-============================================================
 
-WEBSOCKET
+# ============================================================
 
-============================================================
+# WEBSOCKET
+
+# ============================================================
 
 @app.websocket("/ws")
 async def websocket_endpoint(
 websocket: WebSocket
 ):
+
 
 await websocket.accept()
 
@@ -2103,927 +2150,6 @@ try:
 
         })
 
-
-except Exception as error:
-
-    print(
-        "WebSocket closed:",
-        error
-    )}
-
-@keyframes speaking {
-
-    0%, 100% {
-        transform: scale(1);
-    }
-
-    50% {
-        transform: scale(1.07);
-    }
-}
-
-@keyframes rotate {
-
-    from {
-        transform: rotate(0deg);
-    }
-
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-@keyframes spin-glow {
-
-    from {
-        filter: hue-rotate(0deg);
-    }
-
-    to {
-        filter: hue-rotate(35deg);
-    }
-}
-
-</style>
-
-</head>
-
-<body>
-
-<div id="app">
-
-```
-<div class="top-label">
-    STERLING
-</div>
-
-<div
-    class="system-status"
-    id="systemStatus"
->
-    SYSTEM ONLINE
-</div>
-
-<div
-    class="orb-container"
-    id="orbContainer"
->
-
-    <div class="orb-ring"></div>
-    <div class="orb-ring"></div>
-    <div class="orb-ring"></div>
-
-    <div
-        class="orb"
-        id="orb"
-    ></div>
-
-</div>
-
-<div
-    class="status"
-    id="status"
->
-    STANDBY
-</div>
-
-<div
-    class="response"
-    id="response"
-></div>
-
-<div
-    class="mic-warning"
-    id="micWarning"
->
-    Microphone access is required for voice interaction.
-    Please allow microphone access in your browser.
-</div>
-
-<div class="footer">
-    STERLING COMMAND TOWER
-</div>
-```
-
-</div>
-
-<script>
-
-let recognition = null;
-let wakeRecognition = null;
-
-let isProcessing = false;
-let isSpeaking = false;
-
-let wakeRestartTimer = null;
-
-const orb = document.getElementById("orb");
-const app = document.getElementById("app");
-const statusElement = document.getElementById("status");
-const responseElement = document.getElementById("response");
-const systemStatus = document.getElementById("systemStatus");
-const micWarning = document.getElementById("micWarning");
-
-
-function setState(state, text) {
-
-    app.classList.remove(
-        "state-listening",
-        "state-processing",
-        "state-speaking"
-    );
-
-    if (state === "listening") {
-        app.classList.add("state-listening");
-    }
-
-    if (state === "processing") {
-        app.classList.add("state-processing");
-    }
-
-    if (state === "speaking") {
-        app.classList.add("state-speaking");
-    }
-
-    statusElement.textContent = text;
-}
-
-
-function showResponse(text) {
-
-    responseElement.textContent = text;
-
-    responseElement.classList.add("visible");
-}
-
-
-function hideResponse() {
-
-    responseElement.classList.remove("visible");
-}
-
-
-function getSpeechRecognition() {
-
-    return (
-        window.SpeechRecognition ||
-        window.webkitSpeechRecognition ||
-        null
-    );
-}
-
-
-function cleanCommand(text) {
-
-    if (!text) {
-        return "";
-    }
-
-    let cleaned = text.trim();
-
-    cleaned = cleaned.replace(
-        /^\s*sterling[\s,:-]*/i,
-        ""
-    );
-
-    return cleaned.trim();
-}
-
-
-function extractAfterWakeWord(text) {
-
-    if (!text) {
-        return "";
-    }
-
-    const match = text.match(
-        /\bsterling\b(.*)/i
-    );
-
-    if (!match) {
-        return "";
-    }
-
-    return match[1]
-        .replace(/^[\s,:-]+/, "")
-        .trim();
-}
-
-
-function createRecognition() {
-
-    const Recognition = getSpeechRecognition();
-
-    if (!Recognition) {
-        return null;
-    }
-
-    const instance = new Recognition();
-
-    instance.lang = "en-US";
-    instance.continuous = false;
-    instance.interimResults = false;
-    instance.maxAlternatives = 1;
-
-    return instance;
-}
-
-
-function stopWakeListener() {
-
-    if (wakeRestartTimer) {
-        clearTimeout(wakeRestartTimer);
-        wakeRestartTimer = null;
-    }
-
-    if (wakeRecognition) {
-
-        try {
-            wakeRecognition.onend = null;
-            wakeRecognition.stop();
-        } catch (error) {
-        }
-
-        wakeRecognition = null;
-    }
-}
-
-
-function startWakeListener() {
-
-    if (isProcessing || isSpeaking) {
-        return;
-    }
-
-    stopWakeListener();
-
-    wakeRecognition = createRecognition();
-
-    if (!wakeRecognition) {
-
-        systemStatus.textContent =
-            "VOICE UNSUPPORTED";
-
-        statusElement.textContent =
-            "USE CHROME OR EDGE";
-
-        micWarning.style.display = "block";
-
-        return;
-    }
-
-    wakeRecognition.onstart = function() {
-
-        systemStatus.textContent =
-            "LISTENING FOR WAKE WORD";
-
-        setState(
-            "standby",
-            "STANDBY — SAY STERLING"
-        );
-    };
-
-
-    wakeRecognition.onresult = function(event) {
-
-        const result =
-            event.results[
-                event.results.length - 1
-            ];
-
-        if (!result || !result[0]) {
-            return;
-        }
-
-        const transcript =
-            result[0].transcript.trim();
-
-        const lower =
-            transcript.toLowerCase();
-
-        if (!lower.includes("sterling")) {
-            return;
-        }
-
-        stopWakeListener();
-
-        const command =
-            extractAfterWakeWord(transcript);
-
-        if (command) {
-
-            activateSterling(command);
-
-        } else {
-
-            activateSterling("");
-        }
-    };
-
-
-    wakeRecognition.onerror = function(event) {
-
-        if (
-            event.error === "not-allowed" ||
-            event.error === "service-not-allowed"
-        ) {
-
-            systemStatus.textContent =
-                "MICROPHONE BLOCKED";
-
-            statusElement.textContent =
-                "ALLOW MICROPHONE ACCESS";
-
-            micWarning.style.display = "block";
-
-            return;
-        }
-
-        scheduleWakeRestart();
-    };
-
-
-    wakeRecognition.onend = function() {
-
-        if (
-            !isProcessing &&
-            !isSpeaking
-        ) {
-            scheduleWakeRestart();
-        }
-    };
-
-
-    try {
-
-        wakeRecognition.start();
-
-    } catch (error) {
-
-        scheduleWakeRestart();
-    }
-}
-
-
-function scheduleWakeRestart() {
-
-    if (wakeRestartTimer) {
-        return;
-    }
-
-    wakeRestartTimer = setTimeout(
-        function() {
-
-            wakeRestartTimer = null;
-
-            if (
-                !isProcessing &&
-                !isSpeaking
-            ) {
-                startWakeListener();
-            }
-
-        },
-        400
-    );
-}
-
-
-function activateSterling(command) {
-
-    stopWakeListener();
-
-    if (command) {
-
-        sendCommand(command);
-
-        return;
-    }
-
-    setState(
-        "speaking",
-        "AWAITING COMMAND"
-    );
-
-    speak(
-        "Yes?",
-        function() {
-
-            startCommandListener();
-
-        }
-    );
-}
-
-
-function startCommandListener() {
-
-    stopWakeListener();
-
-    recognition = createRecognition();
-
-    if (!recognition) {
-
-        statusElement.textContent =
-            "VOICE UNSUPPORTED";
-
-        return;
-    }
-
-    setState(
-        "listening",
-        "LISTENING"
-    );
-
-    recognition.onresult = function(event) {
-
-        const result =
-            event.results[
-                event.results.length - 1
-            ];
-
-        if (!result || !result[0]) {
-            return;
-        }
-
-        const transcript =
-            result[0].transcript.trim();
-
-        const command =
-            cleanCommand(transcript);
-
-        if (!command) {
-
-            setState(
-                "standby",
-                "STANDBY — SAY STERLING"
-            );
-
-            startWakeListener();
-
-            return;
-        }
-
-        recognition.stop();
-
-        sendCommand(command);
-    };
-
-
-    recognition.onerror = function(event) {
-
-        if (
-            event.error === "not-allowed" ||
-            event.error === "service-not-allowed"
-        ) {
-
-            micWarning.style.display = "block";
-
-            statusElement.textContent =
-                "ALLOW MICROPHONE ACCESS";
-
-            return;
-        }
-
-        setState(
-            "standby",
-            "STANDBY — SAY STERLING"
-        );
-
-        startWakeListener();
-    };
-
-
-    recognition.onend = function() {
-
-        if (
-            !isProcessing &&
-            !isSpeaking &&
-            statusElement.textContent === "LISTENING"
-        ) {
-
-            setState(
-                "standby",
-                "STANDBY — SAY STERLING"
-            );
-
-            startWakeListener();
-        }
-    };
-
-
-    try {
-
-        recognition.start();
-
-    } catch (error) {
-
-        setState(
-            "standby",
-            "STANDBY — SAY STERLING"
-        );
-
-        startWakeListener();
-    }
-}
-
-
-async function sendCommand(command) {
-
-    if (!command || isProcessing) {
-        return;
-    }
-
-    isProcessing = true;
-
-    stopWakeListener();
-
-    if (recognition) {
-
-        try {
-            recognition.stop();
-        } catch (error) {
-        }
-
-        recognition = null;
-    }
-
-    hideResponse();
-
-    setState(
-        "processing",
-        "PROCESSING"
-    );
-
-    systemStatus.textContent =
-        "STERLING IS THINKING";
-
-
-    try {
-
-        const url =
-            "/api/chat?prompt=" +
-            encodeURIComponent(command);
-
-        const response =
-            await fetch(url, {
-                method: "GET"
-            });
-
-
-        if (!response.ok) {
-
-            throw new Error(
-                "Server returned " +
-                response.status
-            );
-        }
-
-
-        const data =
-            await response.json();
-
-        const answer =
-            data.sterling_response ||
-            data.response ||
-            data.message ||
-            "I was unable to formulate a response.";
-
-
-        showResponse(answer);
-
-        isProcessing = false;
-
-        speak(
-            answer,
-            function() {
-
-                returnToStandby();
-
-            }
-        );
-
-
-    } catch (error) {
-
-        console.error(error);
-
-        const message =
-            "I encountered a connection problem.";
-
-        showResponse(message);
-
-        isProcessing = false;
-
-        speak(
-            message,
-            function() {
-
-                returnToStandby();
-
-            }
-        );
-    }
-}
-
-
-function speak(text, onComplete) {
-
-    if (!("speechSynthesis" in window)) {
-
-        if (onComplete) {
-            onComplete();
-        }
-
-        return;
-    }
-
-    isSpeaking = true;
-
-    stopWakeListener();
-
-    window.speechSynthesis.cancel();
-
-    const utterance =
-        new SpeechSynthesisUtterance(text);
-
-    utterance.lang = "en-US";
-
-    utterance.rate = 0.96;
-
-    utterance.pitch = 0.95;
-
-    utterance.volume = 1.0;
-
-
-    const voices =
-        window.speechSynthesis.getVoices();
-
-
-    const preferredNames = [
-        "Microsoft Guy Online",
-        "Microsoft Ryan Online",
-        "Microsoft Christopher Online",
-        "Google US English",
-        "Google UK English Male",
-        "Samantha",
-        "Daniel"
-    ];
-
-
-    let selectedVoice = null;
-
-
-    for (const preferred of preferredNames) {
-
-        selectedVoice =
-            voices.find(
-                voice =>
-                    voice.name
-                        .toLowerCase()
-                        .includes(
-                            preferred.toLowerCase()
-                        )
-            );
-
-        if (selectedVoice) {
-            break;
-        }
-    }
-
-
-    if (!selectedVoice) {
-
-        selectedVoice =
-            voices.find(
-                voice =>
-                    voice.lang === "en-US"
-            );
-    }
-
-
-    if (!selectedVoice) {
-
-        selectedVoice =
-            voices.find(
-                voice =>
-                    voice.lang.startsWith("en")
-            );
-    }
-
-
-    if (selectedVoice) {
-        utterance.voice = selectedVoice;
-    }
-
-
-    utterance.onstart = function() {
-
-        setState(
-            "speaking",
-            "SPEAKING"
-        );
-
-        systemStatus.textContent =
-            "STERLING SPEAKING";
-    };
-
-
-    utterance.onend = function() {
-
-        isSpeaking = false;
-
-        if (onComplete) {
-            onComplete();
-        }
-    };
-
-
-    utterance.onerror = function() {
-
-        isSpeaking = false;
-
-        if (onComplete) {
-            onComplete();
-        }
-    };
-
-
-    window.speechSynthesis.speak(
-        utterance
-    );
-}
-
-
-function returnToStandby() {
-
-    isProcessing = false;
-    isSpeaking = false;
-
-    systemStatus.textContent =
-        "SYSTEM ONLINE";
-
-    setState(
-        "standby",
-        "STANDBY — SAY STERLING"
-    );
-
-    setTimeout(
-        function() {
-
-            if (
-                !isProcessing &&
-                !isSpeaking
-            ) {
-                startWakeListener();
-            }
-
-        },
-        500
-    );
-}
-
-
-function initialiseSterling() {
-
-    if (
-        !window.isSecureContext &&
-        location.hostname !== "localhost"
-    ) {
-
-        console.warn(
-            "Microphone access may require HTTPS."
-        );
-    }
-
-
-    if (!getSpeechRecognition()) {
-
-        systemStatus.textContent =
-            "VOICE UNSUPPORTED";
-
-        statusElement.textContent =
-            "USE CHROME OR EDGE";
-
-        micWarning.style.display = "block";
-
-        return;
-    }
-
-
-    if ("speechSynthesis" in window) {
-
-        window.speechSynthesis.getVoices();
-
-        window.speechSynthesis.onvoiceschanged =
-            function() {
-
-                window.speechSynthesis.getVoices();
-
-            };
-    }
-
-
-    setTimeout(
-        function() {
-
-            startWakeListener();
-
-        },
-        700
-    );
-}
-
-
-window.addEventListener(
-    "load",
-    initialiseSterling
-);
-
-</script>
-
-</body>
-</html>
-"""
-
-# ============================================================
-
-# ROUTES
-
-# ============================================================
-
-@app.get(
-"/",
-response_class=HTMLResponse
-)
-async def home():
-return HTMLResponse(
-content=ORB_UI_HTML
-)
-
-@app.get("/api/chat")
-async def chat(
-prompt: str = Query(
-...,
-min_length=1
-)
-):
-
-```
-response = generate_response(prompt)
-
-return {
-    "sterling_response": response
-}
-```
-
-@app.get("/api/status")
-async def status():
-
-```
-return {
-    "status": "online",
-    "system": "STERLING",
-    "groq_configured": bool(GROQ_API_KEY),
-    "gemini_configured": bool(GEMINI_API_KEY),
-    "conversation_memory": len(
-        conversation_history
-    )
-}
-```
-
-@app.get("/health")
-async def health():
-
-```
-return {
-    "status": "healthy"
-}
-```
-
-# ============================================================
-
-# OPTIONAL WEBSOCKET PLACEHOLDER
-
-# ============================================================
-
-@app.websocket("/ws")
-async def websocket_endpoint(websocket):
-
-```
-await websocket.accept()
-
-try:
-
-    while True:
-
-        data = await websocket.receive_text()
-
-        response = generate_response(data)
-
-        await websocket.send_json({
-            "sterling_response": response
-        })
 
 except Exception as error:
 
