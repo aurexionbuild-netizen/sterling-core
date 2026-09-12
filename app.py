@@ -3409,9 +3409,7 @@ async def websocket_endpoint(
 
         while True:
 
-            data =
-                await websocket.receive_text()
-
+            data =await websocket.receive_text()
 
             response, visual_mode = \
                 generate_response(
