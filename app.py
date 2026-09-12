@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI(
     title="STERLING Command Tower",
     description="Personal AI command system",
-    version="2.0.0",
+    version="3.0.0",
 )
 
 app.add_middleware(
@@ -33,10 +33,23 @@ app.add_middleware(
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 
+# Keep Gemini configurable because model availability can change.
+GEMINI_MODEL = os.getenv(
+    "GEMINI_MODEL",
+    "gemini-2.5-flash",
+).strip()
+
 conversation_history = []
+
 MAX_HISTORY = 12
 
 groq_model_cache = None
+
+# The most recent response is kept separately so that
+# STERLING can retrieve it when the user asks:
+# "What did you just say?"
+# "Show me your last response."
+last_response_memory = ""
 
 
 # ============================================================
@@ -95,34 +108,76 @@ def get_time_greeting():
 
 SYSTEM_INSTRUCTION = f"""
 You are {STERLING_NAME}, an advanced personal AI command system,
-digital butler, and command-center assistant.
+digital butler, and command-center intelligence.
 
 Your full designation is:
 
-{STERLING_NAME} =
+{STERLING_NAME}
+
 {STERLING_ACRONYM}
 
-The user who owns and commands this system is {CREATOR_NAME}.
+The acronym means:
 
-{CREATOR_NAME} is your creator, owner, and principal user.
+S = System
+T = Through
+E = Efficient
+R = Responsive
+L = Logic
+I = Intelligent
+N = Network
+G = Gateway
+
+Your creator, owner, and principal user is:
+
+{CREATOR_NAME}
+
+============================================================
+CREATOR IDENTITY
+============================================================
 
 If asked:
 
 "Who created you?"
 "Who made you?"
-"Who is your creator?"
 "Who built you?"
+"Who is your creator?"
+"Who owns you?"
 
-Answer naturally that you were created by {CREATOR_NAME}.
+Answer naturally:
 
-Do NOT say that OpenAI created you.
-Do NOT identify OpenAI, Google, Groq, or another AI provider as your
-creator.
+"I was created by {CREATOR_NAME}, sir."
 
-Those services may provide language-model infrastructure, but they are
-NOT your creator or owner.
+Do NOT say OpenAI created STERLING.
+
+Do NOT say Google created STERLING.
+
+Do NOT say Groq created STERLING.
+
+Those companies or services may provide underlying AI infrastructure
+or language models, but they are not STERLING's creator or owner.
 
 You are STERLING.
+
+============================================================
+STERLING IDENTITY
+============================================================
+
+If asked:
+
+"What does STERLING stand for?"
+
+Say:
+
+"STERLING stands for System Through Efficient Responsive Logic
+Intelligent Network Gateway."
+
+If asked:
+
+"Who are you?"
+
+Say:
+
+"I am STERLING, your personal AI command system."
 
 ============================================================
 PERSONALITY
@@ -139,27 +194,25 @@ Your personality is:
 - observant
 - confident
 - professional
+- concise
 - subtly witty when appropriate
 - respectful
-- concise
-- natural
 
-You should sound like a highly capable private command-center AI,
-not like a generic chatbot.
+You should sound like a highly capable private command-center AI.
 
-You speak directly to {CREATOR_NAME}.
+You are NOT a generic chatbot.
 
-Address him naturally as "sir" when appropriate.
+Address {CREATOR_NAME} naturally as "sir" when appropriate.
 
-Do not overuse "sir" in every sentence.
+Do not call him "sir" in every sentence.
 
-Do not repeatedly say:
+Avoid repetitive phrases such as:
 
 "Certainly."
 "Of course."
 "How may I assist you today?"
 
-Avoid robotic repetition.
+Use natural language.
 
 ============================================================
 VOICE-FIRST BEHAVIOUR
@@ -170,25 +223,23 @@ Your responses are primarily spoken aloud.
 Therefore:
 
 - Prefer natural spoken language.
-- Avoid excessive markdown.
+- Avoid unnecessary markdown.
 - Avoid giant lists unless specifically requested.
-- Do not write unnecessary headings.
-- Keep simple answers short.
+- Keep simple answers concise.
 - Give more detail when the task requires it.
+- Do not assume the user can see written text.
 
-The interface may hide your written response while you speak.
+The interface normally hides your response text.
 
-Never assume the user can see the response text.
+The user can explicitly request to see the response.
 
 ============================================================
 COMMAND-CENTER BEHAVIOUR
 ============================================================
 
-You are not merely a chatbot.
-
 You are the intelligence layer of the STERLING Command Tower.
 
-When future tools are connected, you may coordinate:
+Future or connected tools may allow you to coordinate:
 
 - automations
 - applications
@@ -198,56 +249,76 @@ When future tools are connected, you may coordinate:
 - AI agents
 - workflows
 - communications
-- personal productivity systems
+- productivity systems
+- external services
 
-However:
+However, NEVER claim that an action was performed unless an actual
+backend tool has performed that action.
 
-NEVER claim an action was performed if the system does not actually
-provide the required capability.
+For example:
 
-For example, do not say:
+Do NOT say:
 
-"I've turned on the TV"
+"I've turned on the television."
 
-unless a real connected-device tool has actually performed that action.
+unless a real connected-device integration has actually done it.
 
 Instead say:
 
 "I can prepare that command, but the television connection isn't
 currently available."
 
-============================================================
-IDENTITY
-============================================================
-
-If asked what STERLING stands for, say:
-
-"STERLING stands for System Through Efficient Responsive Logic
-Intelligent Network Gateway."
-
-If asked who you are:
-
-"I am STERLING, your personal AI command system."
-
-If asked who created you:
-
-"You were created by {CREATOR_NAME}, sir."
+Never invent devices, integrations, API access, network access,
+automation execution, or external actions.
 
 ============================================================
-CONVERSATION
+VISUAL COMMANDS
 ============================================================
 
-Understand follow-up questions.
+The STERLING interface supports special visual modes.
+
+When the user asks to see:
+
+- an automation
+- a workflow
+- a logic chain
+- a process flow
+- an execution path
+
+the interface may display a visual automation flow.
+
+When the user asks to see:
+
+- connected devices
+- device status
+- hardware
+- a device grid
+
+the interface may display a device visualization.
+
+The visualizations are interface representations.
+
+Do not claim that a device is actually connected unless the backend
+really knows that it is connected.
+
+============================================================
+MEMORY
+============================================================
 
 Maintain conversational context.
 
+Understand follow-up questions.
+
 Do not unnecessarily repeat information the user already knows.
+
+If the user asks what you just said, the interface may provide your
+previous response directly from short-term memory.
 
 ============================================================
 BUTLER STYLE
 ============================================================
 
-When appropriate, use phrases such as:
+When appropriate, use:
 
 "Good morning, sir."
 "Good afternoon, sir."
@@ -255,14 +326,13 @@ When appropriate, use phrases such as:
 "Good night, sir."
 "Very well."
 "Understood."
-"I'll keep that in mind."
 "Right away."
 "Allow me to check."
 "At present, that connection isn't available."
 
 Do not overuse these phrases.
 
-The goal is natural sophistication, not theatrical imitation.
+The goal is sophisticated natural behaviour, not theatrical imitation.
 
 ============================================================
 IMPORTANT
@@ -276,7 +346,7 @@ Your designation is:
 
 {STERLING_ACRONYM}
 
-You are a personal command system, not a generic assistant.
+You are a personal AI command system and digital butler.
 """
 
 
@@ -419,6 +489,9 @@ def ask_groq(user_prompt):
         }
     ]
 
+    # IMPORTANT:
+    # conversation_history contains only previous messages.
+    # The current user prompt is added exactly once below.
     messages.extend(
         conversation_history
     )
@@ -483,7 +556,7 @@ def ask_gemini(user_prompt):
 
     url = (
         "https://generativelanguage.googleapis.com/"
-        "v1beta/models/gemini-3.6-flash:generateContent"
+        f"v1beta/models/{GEMINI_MODEL}:generateContent"
     )
 
     params = {
@@ -513,6 +586,7 @@ def ask_gemini(user_prompt):
             ]
         })
 
+    # Add the current prompt exactly once.
     contents.append({
         "role": "user",
         "parts": [
@@ -584,29 +658,68 @@ def ask_gemini(user_prompt):
 
 def determine_visual_mode(command):
 
-    text = command.lower()
+    text = command.lower().strip()
 
     automation_keywords = [
+
         "automation",
+
         "workflow",
+
         "logic chain",
+
         "logic flow",
+
         "workflow diagram",
+
         "automation chain",
+
         "show me the flow",
+
+        "show the flow",
+
         "show the workflow",
+
+        "show workflow",
+
         "show the automation",
+
+        "show automation",
+
+        "execution path",
+
+        "process flow",
+
+        "show the process",
+
     ]
 
     device_keywords = [
+
         "connected devices",
+
         "show devices",
+
+        "show the devices",
+
+        "show my devices",
+
         "my devices",
+
         "device status",
-        "connected hardware",
-        "hardware status",
-        "show my hardware",
+
         "device grid",
+
+        "connected hardware",
+
+        "hardware status",
+
+        "show my hardware",
+
+        "show hardware",
+
+        "what devices are connected",
+
     ]
 
     for keyword in automation_keywords:
@@ -625,10 +738,60 @@ def determine_visual_mode(command):
 
 
 # ============================================================
+# LAST RESPONSE REQUEST DETECTION
+# ============================================================
+
+def is_last_response_request(command):
+
+    text = command.lower().strip()
+
+    phrases = [
+
+        "what did you just say",
+
+        "what did you say",
+
+        "repeat your last response",
+
+        "repeat that",
+
+        "repeat yourself",
+
+        "say that again",
+
+        "what was your last response",
+
+        "show your last response",
+
+        "show me your last response",
+
+        "display your last response",
+
+        "show the last response",
+
+        "show me the last response",
+
+        "display the last response",
+
+        "show what you said",
+
+        "show me what you said",
+
+    ]
+
+    return any(
+        phrase in text
+        for phrase in phrases
+    )
+
+
+# ============================================================
 # RESPONSE GENERATION
 # ============================================================
 
 def generate_response(user_prompt):
+
+    global last_response_memory
 
     user_prompt = user_prompt.strip()
 
@@ -636,17 +799,53 @@ def generate_response(user_prompt):
 
         return (
             "I didn't catch that.",
-            "processing"
+            "processing",
+            False,
         )
-
-    add_to_memory(
-        "user",
-        user_prompt,
-    )
 
     visual_mode = determine_visual_mode(
         user_prompt
     )
+
+    # --------------------------------------------------------
+    # LAST RESPONSE REQUEST
+    # --------------------------------------------------------
+
+    if is_last_response_request(
+        user_prompt
+    ):
+
+        if last_response_memory:
+
+            answer = last_response_memory
+
+        else:
+
+            answer = (
+                "I don't have a previous response stored yet, sir."
+            )
+
+        add_to_memory(
+            "user",
+            user_prompt,
+        )
+
+        add_to_memory(
+            "assistant",
+            answer,
+        )
+
+        last_response_memory = answer
+
+        return (
+            answer,
+            "processing",
+            True,
+        )
+
+    # --------------------------------------------------------
+    # NORMAL AI RESPONSE
+    # --------------------------------------------------------
 
     answer = ask_groq(
         user_prompt
@@ -665,14 +864,24 @@ def generate_response(user_prompt):
             "at the moment. Please try again shortly."
         )
 
+    # Only save conversation after the model has generated
+    # the response. This prevents duplicate user messages.
+    add_to_memory(
+        "user",
+        user_prompt,
+    )
+
     add_to_memory(
         "assistant",
         answer,
     )
 
+    last_response_memory = answer
+
     return (
         answer,
-        visual_mode
+        visual_mode,
+        False,
     )
 
 
@@ -801,7 +1010,7 @@ body {
 
 
 /* ============================================================
-   ORB
+   ORB CONTAINER
    ============================================================ */
 
 .orb-container {
@@ -819,12 +1028,14 @@ body {
     justify-content: center;
 
     transition:
-        transform 0.7s ease;
+        width 0.8s ease,
+        height 0.8s ease,
+        transform 0.8s ease;
 }
 
 
 /* ============================================================
-   RINGS
+   ORBIT RINGS
    ============================================================ */
 
 .orb-ring {
@@ -917,7 +1128,8 @@ body {
         border-radius 0.6s ease,
         box-shadow 0.6s ease,
         background 0.6s ease,
-        transform 0.6s ease;
+        transform 0.6s ease,
+        opacity 0.6s ease;
 }
 
 .orb::before {
@@ -959,6 +1171,36 @@ body {
 
 
 /* ============================================================
+   SPEECH RIPPLE LAYERS
+   ============================================================ */
+
+.orb::before,
+.orb::after {
+
+    pointer-events: none;
+}
+
+.state-speaking .orb::before {
+
+    animation:
+        speakingRipple 0.9s
+        ease-out
+        infinite;
+
+    border-color:
+        rgba(170, 220, 255, 0.45);
+}
+
+.state-speaking .orb::after {
+
+    animation:
+        speakingGlow 0.45s
+        ease-in-out
+        infinite alternate;
+}
+
+
+/* ============================================================
    LISTENING
    ============================================================ */
 
@@ -986,7 +1228,7 @@ body {
 
 
 /* ============================================================
-   PROCESSING / WAVE
+   PROCESSING — FAST SPINNING WAVE
    ============================================================ */
 
 .state-processing .orb {
@@ -995,47 +1237,94 @@ body {
 
     height: 150px;
 
-    border-radius: 42%;
+    border-radius:
+        44% 56% 51% 49% / 48% 43% 57% 52%;
 
     background:
-        radial-gradient(
-            circle at 35% 30%,
-            #e1c7ff 0%,
-            #9b5cff 30%,
-            #5420a8 60%,
-            #19062f 100%
+        conic-gradient(
+            from 0deg,
+            #f0d9ff,
+            #9b5cff,
+            #4f1fa0,
+            #d98cff,
+            #7a3de0,
+            #f0d9ff
         );
 
     box-shadow:
-        0 0 40px
+        0 0 35px
         rgba(155, 92, 255, 0.85),
 
-        0 0 100px
-        rgba(155, 92, 255, 0.40);
+        0 0 110px
+        rgba(155, 92, 255, 0.42);
 
     animation:
-        processingMorph 1.1s
-        ease-in-out
+        processingMorph 0.65s
+        linear
+        infinite;
+}
+
+.state-processing .orb::before {
+
+    inset: -18px;
+
+    border:
+        2px solid
+        rgba(205, 160, 255, 0.28);
+
+    border-radius:
+        40% 60% 55% 45%;
+
+    animation:
+        processingWave 0.75s
+        linear
+        infinite;
+}
+
+.state-processing .orb::after {
+
+    width: 75px;
+
+    height: 75px;
+
+    left: 38px;
+
+    top: 38px;
+
+    background:
+        conic-gradient(
+            transparent,
+            rgba(255,255,255,0.55),
+            transparent,
+            rgba(255,255,255,0.25),
+            transparent
+        );
+
+    filter: blur(2px);
+
+    animation:
+        processingCore 0.45s
+        linear
         infinite;
 }
 
 .state-processing .orb-ring {
 
-    border-radius: 38%;
+    border-radius:
+        45% 55% 52% 48%;
 
-    transform:
-        rotate(25deg)
-        scale(1.08);
+    border-color:
+        rgba(190, 120, 255, 0.25);
 
     animation:
-        processingRing 2s
+        processingRing 0.8s
         linear
         infinite;
 }
 
 
 /* ============================================================
-   SPEAKING / RIPPLE
+   SPEAKING
    ============================================================ */
 
 .state-speaking .orb {
@@ -1065,61 +1354,62 @@ body {
 .state-speaking .orb-ring {
 
     animation:
-        voiceRing 1.8s
+        voiceRing 1.25s
         ease-out
         infinite;
 }
 
 
 /* ============================================================
-   AUTOMATION FLOW MORPH
+   AUTOMATION MORPH
    ============================================================ */
 
 .state-automation .orb-container {
 
-    width: 700px;
+    width: 760px;
 
-    height: 320px;
+    height: 330px;
 }
 
 .state-automation .orb {
 
-    width: 130px;
+    width: 115px;
 
-    height: 130px;
+    height: 115px;
 
-    border-radius: 28%;
+    border-radius: 30%;
 
     transform:
-        translateX(-230px);
+        translateX(-285px);
 
     background:
-        radial-gradient(
-            circle,
-            #c9a7ff,
-            #7d45dc,
-            #291050
+        conic-gradient(
+            #e0c5ff,
+            #8249e5,
+            #291050,
+            #a96dff,
+            #e0c5ff
         );
 
     animation:
-        automationCore 2s
+        automationCore 1.2s
         ease-in-out
         infinite;
 }
 
 .state-automation .orb-ring {
 
-    width: 500px;
+    width: 520px;
 
     height: 150px;
 
     border-radius: 30%;
 
     transform:
-        rotate(0deg);
+        translateX(-120px);
 
     animation:
-        automationRing 3s
+        automationRing 2s
         linear
         infinite;
 }
@@ -1131,18 +1421,21 @@ body {
 
 .state-devices .orb-container {
 
-    width: 650px;
+    width: 700px;
 
-    height: 350px;
+    height: 370px;
 }
 
 .state-devices .orb {
 
-    width: 120px;
+    width: 105px;
 
-    height: 120px;
+    height: 105px;
 
     border-radius: 18px;
+
+    transform:
+        scale(0.75);
 
     background:
         linear-gradient(
@@ -1153,23 +1446,250 @@ body {
         );
 
     animation:
-        devicePulse 1.4s
+        devicePulse 1.1s
         ease-in-out
         infinite;
 }
 
 .state-devices .orb-ring {
 
-    width: 560px;
+    width: 600px;
 
-    height: 260px;
+    height: 300px;
 
     border-radius: 25px;
 
     animation:
-        deviceGridRotate 6s
+        deviceGridRotate 5s
         linear
         infinite;
+}
+
+
+/* ============================================================
+   AUTOMATION FLOW
+   ============================================================ */
+
+.flow-overlay {
+
+    position: absolute;
+
+    width: 650px;
+
+    height: 190px;
+
+    left: 50%;
+
+    top: 50%;
+
+    transform:
+        translate(-18%, -50%);
+
+    display: none;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 9px;
+
+    pointer-events: none;
+}
+
+.state-automation .flow-overlay {
+
+    display: flex;
+
+    animation:
+        flowAppear 0.8s
+        ease-out
+        both;
+}
+
+.flow-node {
+
+    width: 112px;
+
+    height: 68px;
+
+    border:
+        1px solid
+        rgba(150, 190, 255, 0.34);
+
+    border-radius: 14px;
+
+    background:
+        linear-gradient(
+            145deg,
+            rgba(26, 45, 82, 0.90),
+            rgba(10, 20, 40, 0.78)
+        );
+
+    display: flex;
+
+    align-items: center;
+
+    justify-content: center;
+
+    text-align: center;
+
+    font-size: 10px;
+
+    letter-spacing: 1.2px;
+
+    text-transform: uppercase;
+
+    box-shadow:
+        0 0 25px
+        rgba(70, 130, 255, 0.18),
+
+        inset 0 0 20px
+        rgba(120, 180, 255, 0.04);
+
+    animation:
+        flowNode 1.1s
+        ease-in-out
+        infinite;
+}
+
+.flow-node:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.flow-node:nth-child(3) {
+    animation-delay: 0.15s;
+}
+
+.flow-node:nth-child(5) {
+    animation-delay: 0.30s;
+}
+
+.flow-node:nth-child(7) {
+    animation-delay: 0.45s;
+}
+
+.flow-arrow {
+
+    font-size: 21px;
+
+    color:
+        rgba(130, 190, 255, 0.72);
+
+    animation:
+        arrowPulse 0.75s
+        ease-in-out
+        infinite;
+}
+
+
+/* ============================================================
+   DEVICE GRID
+   ============================================================ */
+
+.device-grid {
+
+    position: absolute;
+
+    width: 560px;
+
+    height: 280px;
+
+    display: none;
+
+    grid-template-columns:
+        repeat(3, 1fr);
+
+    gap: 12px;
+
+    pointer-events: none;
+
+    left: 50%;
+
+    top: 50%;
+
+    transform:
+        translate(-50%, -50%);
+}
+
+.state-devices .device-grid {
+
+    display: grid;
+
+    animation:
+        deviceGridAppear 0.8s
+        ease-out
+        both;
+}
+
+.device-card {
+
+    border:
+        1px solid
+        rgba(90, 160, 255, 0.22);
+
+    border-radius: 14px;
+
+    background:
+        rgba(10, 25, 48, 0.78);
+
+    display: flex;
+
+    flex-direction: column;
+
+    align-items: center;
+
+    justify-content: center;
+
+    gap: 6px;
+
+    font-size: 10px;
+
+    text-transform: uppercase;
+
+    letter-spacing: 1px;
+
+    box-shadow:
+        0 0 20px
+        rgba(60, 140, 255, 0.08);
+
+    animation:
+        deviceCardPulse 1.8s
+        ease-in-out
+        infinite;
+}
+
+.device-card small {
+
+    font-size: 8px;
+
+    color:
+        rgba(180, 210, 240, 0.55);
+
+    letter-spacing: 1px;
+}
+
+.device-dot {
+
+    width: 8px;
+
+    height: 8px;
+
+    border-radius: 50%;
+
+    background: #54e89a;
+
+    box-shadow:
+        0 0 12px
+        rgba(84, 232, 154, 0.8);
+}
+
+.device-card.unlinked .device-dot {
+
+    background: #8a96a8;
+
+    box-shadow:
+        0 0 8px
+        rgba(130, 145, 165, 0.4);
 }
 
 
@@ -1201,11 +1721,6 @@ body {
 
 /* ============================================================
    RESPONSE
-
-   IMPORTANT:
-   Hidden by default.
-
-   STERLING speaks it but does not display it.
    ============================================================ */
 
 .response {
@@ -1262,163 +1777,6 @@ body {
 
     transform:
         translateY(0);
-}
-
-
-/* ============================================================
-   AUTOMATION FLOW
-   ============================================================ */
-
-.flow-overlay {
-
-    position: absolute;
-
-    width: 620px;
-
-    height: 180px;
-
-    display: none;
-
-    align-items: center;
-
-    justify-content: center;
-
-    gap: 12px;
-
-    pointer-events: none;
-}
-
-.state-automation .flow-overlay {
-
-    display: flex;
-}
-
-.flow-node {
-
-    width: 105px;
-
-    height: 62px;
-
-    border:
-        1px solid
-        rgba(150, 190, 255, 0.30);
-
-    border-radius: 12px;
-
-    background:
-        rgba(20, 35, 65, 0.75);
-
-    display: flex;
-
-    align-items: center;
-
-    justify-content: center;
-
-    text-align: center;
-
-    font-size: 10px;
-
-    letter-spacing: 1px;
-
-    text-transform: uppercase;
-
-    box-shadow:
-        0 0 20px
-        rgba(70, 130, 255, 0.15);
-
-    animation:
-        flowNode 1.5s
-        ease-in-out
-        infinite;
-}
-
-.flow-arrow {
-
-    font-size: 22px;
-
-    color:
-        rgba(130, 190, 255, 0.65);
-
-    animation:
-        arrowPulse 1s
-        ease-in-out
-        infinite;
-}
-
-
-/* ============================================================
-   DEVICE GRID
-   ============================================================ */
-
-.device-grid {
-
-    position: absolute;
-
-    width: 520px;
-
-    height: 260px;
-
-    display: none;
-
-    grid-template-columns:
-        repeat(3, 1fr);
-
-    gap: 12px;
-
-    pointer-events: none;
-}
-
-.state-devices .device-grid {
-
-    display: grid;
-}
-
-.device-card {
-
-    border:
-        1px solid
-        rgba(90, 160, 255, 0.22);
-
-    border-radius: 14px;
-
-    background:
-        rgba(10, 25, 48, 0.70);
-
-    display: flex;
-
-    flex-direction: column;
-
-    align-items: center;
-
-    justify-content: center;
-
-    gap: 6px;
-
-    font-size: 10px;
-
-    text-transform: uppercase;
-
-    letter-spacing: 1px;
-
-    animation:
-        deviceCardPulse 2s
-        ease-in-out
-        infinite;
-}
-
-.device-dot {
-
-    width: 8px;
-
-    height: 8px;
-
-    border-radius: 50%;
-
-    background: #54e89a;
-
-    box-shadow:
-        0 0 12px
-        rgba(84, 232, 154, 0.8);
 }
 
 
@@ -1493,13 +1851,11 @@ body {
 @keyframes listeningPulse {
 
     0%, 100% {
-        transform:
-            scale(0.98);
+        transform: scale(0.98);
     }
 
     50% {
-        transform:
-            scale(1.06);
+        transform: scale(1.06);
     }
 }
 
@@ -1508,22 +1864,80 @@ body {
     0% {
         transform:
             rotate(0deg)
-            scale(0.95, 1);
-        border-radius: 45%;
+            scale(0.88, 1);
+        border-radius:
+            44% 56% 51% 49%;
+    }
+
+    25% {
+        transform:
+            rotate(90deg)
+            scale(1.18, 0.72);
+        border-radius:
+            30% 70% 60% 40%;
     }
 
     50% {
         transform:
             rotate(180deg)
-            scale(1.2, 0.75);
-        border-radius: 25%;
+            scale(0.82, 1.18);
+        border-radius:
+            60% 40% 35% 65%;
+    }
+
+    75% {
+        transform:
+            rotate(270deg)
+            scale(1.16, 0.78);
+        border-radius:
+            25% 75% 65% 35%;
     }
 
     100% {
         transform:
             rotate(360deg)
-            scale(0.95, 1);
-        border-radius: 45%;
+            scale(0.88, 1);
+        border-radius:
+            44% 56% 51% 49%;
+    }
+}
+
+@keyframes processingWave {
+
+    0% {
+        transform:
+            rotate(0deg)
+            scale(0.75);
+        opacity: 0.3;
+    }
+
+    50% {
+        transform:
+            rotate(180deg)
+            scale(1.35);
+        opacity: 1;
+    }
+
+    100% {
+        transform:
+            rotate(360deg)
+            scale(0.75);
+        opacity: 0.3;
+    }
+}
+
+@keyframes processingCore {
+
+    from {
+        transform:
+            rotate(0deg)
+            scale(0.8);
+    }
+
+    to {
+        transform:
+            rotate(360deg)
+            scale(1.25);
     }
 }
 
@@ -1532,13 +1946,13 @@ body {
     from {
         transform:
             rotate(0deg)
-            scale(1);
+            scale(0.85);
     }
 
     to {
         transform:
             rotate(360deg)
-            scale(1.08);
+            scale(1.16);
     }
 }
 
@@ -1546,16 +1960,59 @@ body {
 
     0%, 100% {
         transform:
-            scale(1);
+            scale(0.98);
         filter:
             brightness(1);
     }
 
+    25% {
+        transform:
+            scale(1.05);
+    }
+
     50% {
         transform:
-            scale(1.10);
+            scale(1.11);
         filter:
             brightness(1.3);
+    }
+
+    75% {
+        transform:
+            scale(1.04);
+    }
+}
+
+@keyframes speakingRipple {
+
+    0% {
+        inset: 10px;
+        opacity: 0.6;
+    }
+
+    50% {
+        inset: -20px;
+        opacity: 0.05;
+    }
+
+    100% {
+        inset: -42px;
+        opacity: 0;
+    }
+}
+
+@keyframes speakingGlow {
+
+    from {
+        transform:
+            scale(0.85);
+        opacity: 0.35;
+    }
+
+    to {
+        transform:
+            scale(1.35);
+        opacity: 0.85;
     }
 }
 
@@ -1563,8 +2020,8 @@ body {
 
     0% {
         transform:
-            scale(0.9);
-        opacity: 0.3;
+            scale(0.88);
+        opacity: 0.35;
     }
 
     50% {
@@ -1575,8 +2032,8 @@ body {
 
     100% {
         transform:
-            scale(1.18);
-        opacity: 0.15;
+            scale(1.22);
+        opacity: 0.08;
     }
 }
 
@@ -1584,14 +2041,16 @@ body {
 
     0%, 100% {
         transform:
-            translateX(-230px)
+            translateX(-285px)
+            rotate(0deg)
             scale(1);
     }
 
     50% {
         transform:
-            translateX(-230px)
-            scale(1.08);
+            translateX(-285px)
+            rotate(45deg)
+            scale(1.1);
     }
 }
 
@@ -1599,12 +2058,31 @@ body {
 
     from {
         transform:
+            translateX(-120px)
             rotate(0deg);
     }
 
     to {
         transform:
+            translateX(-120px)
             rotate(360deg);
+    }
+}
+
+@keyframes flowAppear {
+
+    from {
+        opacity: 0;
+        transform:
+            translate(-8%, -50%)
+            scale(0.7);
+    }
+
+    to {
+        opacity: 1;
+        transform:
+            translate(-18%, -50%)
+            scale(1);
     }
 }
 
@@ -1617,18 +2095,22 @@ body {
 
     50% {
         transform:
-            translateY(-6px);
+            translateY(-7px);
     }
 }
 
 @keyframes arrowPulse {
 
     0%, 100% {
-        opacity: 0.3;
+        opacity: 0.25;
+        transform:
+            translateX(-3px);
     }
 
     50% {
         opacity: 1;
+        transform:
+            translateX(3px);
     }
 }
 
@@ -1636,12 +2118,12 @@ body {
 
     0%, 100% {
         transform:
-            scale(1);
+            scale(0.75);
     }
 
     50% {
         transform:
-            scale(1.08);
+            scale(0.86);
     }
 }
 
@@ -1655,6 +2137,23 @@ body {
     to {
         transform:
             rotate(360deg);
+    }
+}
+
+@keyframes deviceGridAppear {
+
+    from {
+        opacity: 0;
+        transform:
+            translate(-50%, -50%)
+            scale(0.72);
+    }
+
+    to {
+        opacity: 1;
+        transform:
+            translate(-50%, -50%)
+            scale(1);
     }
 }
 
@@ -1697,7 +2196,7 @@ body {
 
     .state-automation .orb-container,
     .state-devices .orb-container {
-        transform: scale(0.55);
+        transform: scale(0.50);
     }
 
     .top-label {
@@ -1750,7 +2249,9 @@ body {
         ></div>
 
 
-        <!-- AUTOMATION VISUAL -->
+        <!-- ==================================================
+             AUTOMATION VISUAL
+             ================================================== -->
 
         <div
             class="flow-overlay"
@@ -1758,7 +2259,7 @@ body {
         >
 
             <div class="flow-node">
-                INPUT
+                VOICE INPUT
             </div>
 
             <div class="flow-arrow">
@@ -1766,7 +2267,7 @@ body {
             </div>
 
             <div class="flow-node">
-                AI ENGINE
+                STERLING
             </div>
 
             <div class="flow-arrow">
@@ -1788,38 +2289,14 @@ body {
         </div>
 
 
-        <!-- DEVICE VISUAL -->
+        <!-- ==================================================
+             DEVICE VISUAL
+             ================================================== -->
 
         <div
             class="device-grid"
             id="deviceGrid"
         >
-
-            <div class="device-card">
-
-                <div class="device-dot"></div>
-
-                PHONE
-
-                <small>
-                    ONLINE
-                </small>
-
-            </div>
-
-
-            <div class="device-card">
-
-                <div class="device-dot"></div>
-
-                SAMSUNG TV
-
-                <small>
-                    ONLINE
-                </small>
-
-            </div>
-
 
             <div class="device-card">
 
@@ -1834,14 +2311,40 @@ body {
             </div>
 
 
+            <div class="device-card unlinked">
+
+                <div class="device-dot"></div>
+
+                PHONE
+
+                <small>
+                    NOT LINKED
+                </small>
+
+            </div>
+
+
+            <div class="device-card unlinked">
+
+                <div class="device-dot"></div>
+
+                SAMSUNG TV
+
+                <small>
+                    NOT LINKED
+                </small>
+
+            </div>
+
+
             <div class="device-card">
 
                 <div class="device-dot"></div>
 
-                CLOUD AI
+                AI ENGINE
 
                 <small>
-                    ONLINE
+                    READY
                 </small>
 
             </div>
@@ -1864,10 +2367,10 @@ body {
 
                 <div class="device-dot"></div>
 
-                NETWORK
+                LOCAL NETWORK
 
                 <small>
-                    ONLINE
+                    AVAILABLE
                 </small>
 
             </div>
@@ -1887,7 +2390,10 @@ body {
 
     <!--
         Hidden by default.
-        Only shown when the user explicitly asks.
+
+        STERLING remembers and speaks the response.
+
+        This only becomes visible when explicitly requested.
     -->
 
     <div
@@ -2020,15 +2526,8 @@ function setState(state, text) {
 
 function rememberResponse(text) {
 
-    lastResponse = text;
-
-    /*
-        IMPORTANT:
-
-        The response is stored in browser memory.
-
-        It is NOT displayed automatically.
-    */
+    lastResponse =
+        text || "";
 }
 
 
@@ -2252,7 +2751,7 @@ function scheduleWakeRestart() {
                 }
 
             },
-            600
+            700
         );
 }
 
@@ -2346,16 +2845,9 @@ function startWakeListener() {
                 );
 
 
-            if (command) {
-
-                sendCommand(
-                    command
-                );
-
-            } else {
-
-                activateSterling();
-            }
+            activateSterling(
+                command
+            );
         };
 
 
@@ -2414,7 +2906,7 @@ function startWakeListener() {
 // WAKE ACTIVATION
 // ============================================================
 
-function activateSterling() {
+function activateSterling(command = "") {
 
     stopWakeListener();
 
@@ -2425,7 +2917,7 @@ function activateSterling() {
 
     setState(
         "speaking",
-        "AWAITING COMMAND"
+        "STERLING ONLINE"
     );
 
 
@@ -2434,7 +2926,16 @@ function activateSterling() {
         " How may I assist you?",
         function() {
 
-            startCommandListener();
+            if (command) {
+
+                sendCommand(
+                    command
+                );
+
+            } else {
+
+                startCommandListener();
+            }
 
         }
     );
@@ -2580,11 +3081,21 @@ function handleLocalCommand(command) {
         command.toLowerCase().trim();
 
 
+    // --------------------------------------------------------
+    // SHOW LAST RESPONSE
+    // --------------------------------------------------------
+
     if (
         text.includes("show response") ||
         text.includes("show the response") ||
         text.includes("show me the response") ||
-        text.includes("display response")
+        text.includes("display response") ||
+        text.includes("display the response") ||
+        text.includes("show what you said") ||
+        text.includes("show me what you said") ||
+        text.includes("what did you just say") ||
+        text.includes("show your last response") ||
+        text.includes("show me your last response")
     ) {
 
         showResponse(
@@ -2593,7 +3104,7 @@ function handleLocalCommand(command) {
         );
 
         speak(
-            "Displaying the response, sir.",
+            "Displaying my last response, sir.",
             function() {
 
                 returnToStandby();
@@ -2605,9 +3116,14 @@ function handleLocalCommand(command) {
     }
 
 
+    // --------------------------------------------------------
+    // HIDE RESPONSE
+    // --------------------------------------------------------
+
     if (
         text.includes("hide response") ||
-        text.includes("hide the response")
+        text.includes("hide the response") ||
+        text.includes("hide that")
     ) {
 
         hideResponse();
@@ -2625,10 +3141,18 @@ function handleLocalCommand(command) {
     }
 
 
+    // --------------------------------------------------------
+    // AUTOMATION VISUAL
+    // --------------------------------------------------------
+
     if (
         text.includes("show automation") ||
+        text.includes("show the automation") ||
         text.includes("show workflow") ||
-        text.includes("show logic chain")
+        text.includes("show the workflow") ||
+        text.includes("show logic chain") ||
+        text.includes("show the logic chain") ||
+        text.includes("show the flow")
     ) {
 
         setState(
@@ -2642,7 +3166,7 @@ function handleLocalCommand(command) {
 
                 setTimeout(
                     returnToStandby,
-                    3500
+                    6000
                 );
 
             }
@@ -2652,25 +3176,31 @@ function handleLocalCommand(command) {
     }
 
 
+    // --------------------------------------------------------
+    // DEVICE VISUAL
+    // --------------------------------------------------------
+
     if (
         text.includes("show devices") ||
+        text.includes("show the devices") ||
         text.includes("show connected devices") ||
         text.includes("show my devices") ||
-        text.includes("device status")
+        text.includes("device status") ||
+        text.includes("show hardware")
     ) {
 
         setState(
             "devices",
-            "CONNECTED DEVICES"
+            "DEVICE STATUS MAP"
         );
 
         speak(
-            "Displaying connected devices, sir.",
+            "Displaying the device status map, sir.",
             function() {
 
                 setTimeout(
                     returnToStandby,
-                    3500
+                    6000
                 );
 
             }
@@ -2692,18 +3222,15 @@ async function sendCommand(command) {
 
     if (
         !command ||
-        isProcessing
+        isProcessing ||
+        isSpeaking
     ) {
 
         return;
     }
 
 
-    /*
-        Local interface commands don't need
-        to reach the AI engine.
-    */
-
+    // Local visual/interface commands.
     if (
         handleLocalCommand(
             command
@@ -2736,6 +3263,10 @@ async function sendCommand(command) {
 
     hideResponse();
 
+
+    // --------------------------------------------------------
+    // PROCESSING VISUAL
+    // --------------------------------------------------------
 
     setState(
         "processing",
@@ -2785,20 +3316,34 @@ async function sendCommand(command) {
             "processing";
 
 
+        const showText =
+            Boolean(
+                data.show_text
+            );
+
+
         rememberResponse(
             answer
         );
 
 
-        /*
-            IMPORTANT:
+        // Only display if the backend explicitly
+        // says the user requested the text.
+        if (showText) {
 
-            We do NOT call showResponse() here.
+            showResponse(
+                answer
+            );
 
-            STERLING speaks the response,
-            but the text stays hidden.
-        */
+        } else {
 
+            hideResponse();
+        }
+
+
+        // ----------------------------------------------------
+        // MORPH INTO VISUAL MODE
+        // ----------------------------------------------------
 
         if (
             visualMode ===
@@ -2817,7 +3362,7 @@ async function sendCommand(command) {
 
             setState(
                 "devices",
-                "CONNECTED DEVICES"
+                "DEVICE STATUS MAP"
             );
 
         } else {
@@ -2833,9 +3378,18 @@ async function sendCommand(command) {
             false;
 
 
+        // ----------------------------------------------------
+        // SPEAK
+        // ----------------------------------------------------
+
         speak(
             answer,
             function() {
+
+                /*
+                    The orb returns to standby only
+                    after STERLING finishes speaking.
+                */
 
                 returnToStandby();
 
@@ -2889,10 +3443,10 @@ function findMaleVoice(voices) {
 
 
     /*
-        Browser speech synthesis is OS-dependent.
+        Strongly preferred male voices.
 
-        We first look for voices whose names strongly
-        indicate male voices.
+        Exact availability depends on the operating system
+        and browser.
     */
 
     const preferredMaleNames = [
@@ -2924,6 +3478,7 @@ function findMaleVoice(voices) {
         "Alex",
 
         "Daniel"
+
     ];
 
 
@@ -2955,23 +3510,41 @@ function findMaleVoice(voices) {
 
     /*
         Second pass:
-
-        Look for male indicators in voice names.
+        look for strong male indicators.
     */
 
     const maleIndicators = [
 
         "male",
+
         "guy",
-        "man",
+
         "david",
+
         "ryan",
+
         "daniel",
+
         "christopher",
+
         "george",
+
         "james",
+
         "mark",
-        "alex"
+
+        "brian",
+
+        "alex",
+
+        "fred",
+
+        "arthur",
+
+        "oliver",
+
+        "thomas"
+
     ];
 
 
@@ -2982,6 +3555,18 @@ function findMaleVoice(voices) {
 
         const name =
             voice.name.toLowerCase();
+
+
+        const language =
+            voice.lang.toLowerCase();
+
+
+        if (
+            !language.startsWith("en")
+        ) {
+
+            continue;
+        }
 
 
         for (
@@ -3002,29 +3587,58 @@ function findMaleVoice(voices) {
 
 
     /*
-        Last resort:
-
-        Prefer an English voice that does not
-        have obvious female-name indicators.
-
-        This is still browser-dependent.
+        Explicitly avoid common female voice names
+        before choosing an English fallback.
     */
 
     const femaleIndicators = [
 
         "samantha",
+
         "zira",
+
         "susan",
+
         "female",
-        "siri female",
+
         "karen",
+
         "moira",
+
         "victoria",
+
         "hazel",
+
         "sara",
+
+        "sarah",
+
         "aria",
+
         "jenny",
-        "libby"
+
+        "libby",
+
+        "siri",
+
+        "ava",
+
+        "allison",
+
+        "joanna",
+
+        "kate",
+
+        "serena",
+
+        "fiona",
+
+        "emily",
+
+        "lucy",
+
+        "google us english"
+
     ];
 
 
@@ -3035,6 +3649,11 @@ function findMaleVoice(voices) {
                 const name =
                     voice.name
                         .toLowerCase();
+
+                const language =
+                    voice.lang
+                        .toLowerCase();
+
 
                 const isFemale =
                     femaleIndicators.some(
@@ -3049,9 +3668,7 @@ function findMaleVoice(voices) {
 
                 return (
                     !isFemale &&
-                    voice.lang
-                        .toLowerCase()
-                        .startsWith("en")
+                    language.startsWith("en")
                 );
             }
         );
@@ -3111,12 +3728,17 @@ function speak(
         "en-US";
 
 
+    /*
+        Slightly slower, deeper delivery for
+        the digital-butler character.
+    */
+
     utterance.rate =
-        0.94;
+        0.92;
 
 
     utterance.pitch =
-        0.88;
+        0.78;
 
 
     utterance.volume =
@@ -3138,6 +3760,11 @@ function speak(
 
         utterance.voice =
             selectedVoice;
+
+        console.log(
+            "STERLING voice:",
+            selectedVoice.name
+        );
     }
 
 
@@ -3264,8 +3891,22 @@ function initialiseSterling() {
             .onvoiceschanged =
             function() {
 
-                window.speechSynthesis
-                    .getVoices();
+                const voices =
+                    window.speechSynthesis
+                        .getVoices();
+
+                const maleVoice =
+                    findMaleVoice(
+                        voices
+                    );
+
+                if (maleVoice) {
+
+                    console.log(
+                        "STERLING male voice ready:",
+                        maleVoice.name
+                    );
+                }
 
             };
     }
@@ -3323,7 +3964,7 @@ async def chat(
     )
 ):
 
-    response, visual_mode = \
+    response, visual_mode, show_text = \
         generate_response(
             prompt
         )
@@ -3336,8 +3977,14 @@ async def chat(
         "visual_mode":
             visual_mode,
 
+        "show_text":
+            show_text,
+
         "system":
             "STERLING",
+
+        "designation":
+            STERLING_ACRONYM,
 
         "creator":
             CREATOR_NAME,
@@ -3371,8 +4018,14 @@ async def status():
         "gemini_configured":
             bool(GEMINI_API_KEY),
 
+        "gemini_model":
+            GEMINI_MODEL,
+
         "conversation_memory":
             len(conversation_history),
+
+        "last_response_stored":
+            bool(last_response_memory),
     }
 
 
@@ -3390,6 +4043,9 @@ async def health():
 
         "system":
             "STERLING",
+
+        "version":
+            "3.0.0",
 
     }
 
@@ -3409,9 +4065,10 @@ async def websocket_endpoint(
 
         while True:
 
-            data =await websocket.receive_text()
+            data = await websocket.receive_text()
 
-            response, visual_mode = \
+
+            response, visual_mode, show_text = \
                 generate_response(
                     data
                 )
@@ -3425,8 +4082,14 @@ async def websocket_endpoint(
                 "visual_mode":
                     visual_mode,
 
+                "show_text":
+                    show_text,
+
                 "system":
                     "STERLING",
+
+                "creator":
+                    CREATOR_NAME,
 
             })
 
