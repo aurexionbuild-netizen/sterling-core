@@ -1,9 +1,12 @@
 import os
+import json
+import re
+import secrets
 import requests
 from datetime import datetime
 
-from fastapi import FastAPI, Query, WebSocket
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, PlainTextResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 
@@ -14,15 +17,15 @@ from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI(
     title="STERLING Command Tower",
     description="Personal AI command system",
-    version="3.0.0",
+    version="3.6.0",
 )
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type", "X-STERLING-KEY"],
 )
 
 
@@ -67,19 +70,61 @@ CREATOR_NAME = "Reitshepile"
 
 
 # ============================================================
+# ACCESS CONTROL + SESSION ISOLATION
+# ============================================================
+
+MASTER_ACCESS_KEY = os.getenv("STERLING_MASTER_KEY", "").strip()
+GUEST_KEYS_RAW = os.getenv("STERLING_GUEST_KEYS", "").strip()
+SESSION_COOKIE = "sterling_session"
+SESSION_MAX_AGE = 60 * 60 * 24 * 30
+
+try:
+    GUEST_ACCESS = json.loads(GUEST_KEYS_RAW) if GUEST_KEYS_RAW else {}
+    if not isinstance(GUEST_ACCESS, dict):
+        GUEST_ACCESS = {}
+except Exception:
+    GUEST_ACCESS = {}
+
+SESSIONS = {}
+
+def _access_record(key):
+    if not key:
+        return None
+    if MASTER_ACCESS_KEY and secrets.compare_digest(key, MASTER_ACCESS_KEY):
+        return {"role": "owner", "name": CREATOR_NAME}
+    guest = GUEST_ACCESS.get(key)
+    if isinstance(guest, str):
+        return {"role": "guest", "name": guest}
+    if isinstance(guest, dict):
+        return {"role": str(guest.get("role", "guest")), "name": str(guest.get("name", "Guest"))}
+    return None
+
+def _new_session(access):
+    session_id = secrets.token_urlsafe(32)
+    SESSIONS[session_id] = {"access": access, "history": [], "last_response": "", "created_at": datetime.utcnow().isoformat()}
+    return session_id
+
+def _get_session(request):
+    session_id = request.cookies.get(SESSION_COOKIE)
+    return SESSIONS.get(session_id) if session_id else None
+
+def _guest_profile_instruction(session):
+    profile = session.get("access", {}) if session else {}
+    if profile.get("role") == "owner":
+        return f"The active user is your owner, {CREATOR_NAME}. Address him naturally as sir or Reitshepile."
+    return f"The active user is an authorized guest named {profile.get('name', 'Guest')}. Keep this user's conversation isolated from other users and adapt your explanations naturally."
+
+
+# ============================================================
 # MEMORY
 # ============================================================
 
-def add_to_memory(role, content):
+def add_to_memory(role, content, session=None):
+    target = session["history"] if session else conversation_history
+    target.append({"role": role, "content": content})
+    if len(target) > MAX_HISTORY:
+        del target[:-MAX_HISTORY]
 
-    conversation_history.append({
-        "role": role,
-        "content": content,
-    })
-
-    if len(conversation_history) > MAX_HISTORY:
-
-        del conversation_history[:-MAX_HISTORY]
 
 
 # ============================================================
@@ -106,7 +151,7 @@ def get_time_greeting():
 # SYSTEM INSTRUCTION
 # ============================================================
 
-SYSTEM_INSTRUCTION = f"""
+BASE_SYSTEM_INSTRUCTION = f"""
 You are {STERLING_NAME}, an advanced personal AI command system,
 digital butler, and command-center intelligence.
 
@@ -350,6 +395,10 @@ You are a personal AI command system and digital butler.
 """
 
 
+def build_system_instruction(session=None):
+    return BASE_SYSTEM_INSTRUCTION + "\n\nACTIVE USER CONTEXT:\n" + _guest_profile_instruction(session)
+
+
 # ============================================================
 # GROQ MODEL DISCOVERY
 # ============================================================
@@ -465,7 +514,7 @@ def get_groq_model():
 # GROQ
 # ============================================================
 
-def ask_groq(user_prompt):
+def ask_groq(user_prompt, session=None):
 
     if not GROQ_API_KEY:
         return None
@@ -485,7 +534,7 @@ def ask_groq(user_prompt):
     messages = [
         {
             "role": "system",
-            "content": SYSTEM_INSTRUCTION,
+            "content": build_system_instruction(session),
         }
     ]
 
@@ -493,7 +542,7 @@ def ask_groq(user_prompt):
     # conversation_history contains only previous messages.
     # The current user prompt is added exactly once below.
     messages.extend(
-        conversation_history
+        session["history"] if session else conversation_history
     )
 
     messages.append({
@@ -549,7 +598,7 @@ def ask_groq(user_prompt):
 # GEMINI
 # ============================================================
 
-def ask_gemini(user_prompt):
+def ask_gemini(user_prompt, session=None):
 
     if not GEMINI_API_KEY:
         return None
@@ -565,7 +614,7 @@ def ask_gemini(user_prompt):
 
     contents = []
 
-    for message in conversation_history:
+    for message in (session["history"] if session else conversation_history):
 
         role = message.get("role")
 
@@ -601,7 +650,7 @@ def ask_gemini(user_prompt):
         "system_instruction": {
             "parts": [
                 {
-                    "text": SYSTEM_INSTRUCTION
+                    "text": build_system_instruction(session)
                 }
             ]
         },
@@ -789,100 +838,139 @@ def is_last_response_request(command):
 # RESPONSE GENERATION
 # ============================================================
 
-def generate_response(user_prompt):
+def detect_media_intent(command):
+    text = command.lower().strip()
+    is_tv = any(x in text for x in ["on my tv", "on the tv", "on tv", "television", "living room tv", "samsung tv"])
+    platforms = {"netflix": ["netflix"], "youtube": ["youtube", "you tube"], "prime_video": ["prime video", "amazon prime"], "disney_plus": ["disney plus", "disney+"], "showmax": ["showmax"], "dstv": ["dstv"], "spotify": ["spotify"]}
+    platform = next((name for name, words in platforms.items() if any(w in text for w in words)), None)
+    if not platform and is_tv:
+        m = re.search(r"(?:open|launch|start|go to)\s+(?:the\s+)?([a-z0-9 .+_-]+?)(?:\s+on\s+(?:my\s+)?tv|\s+on\s+the\s+tv|$)", text)
+        if m: platform = m.group(1).strip()
+    if not platform: return None
+    profile = None
+    m = re.search(r"(?:my|the)\s+(?:profile|account)(?:\s+named|\s+is)?\s*([a-z0-9 _-]+)?", text)
+    if m and m.group(1): profile = m.group(1).strip()
+    elif "my profile" in text or "my account" in text: profile = "owner"
+    content = ""
+    q = re.search(r"[\"'](.+?)[\"']", command)
+    if q: content = q.group(1).strip()
+    else:
+        for marker in ["search for ", "play ", "watch ", "find "]:
+            idx = text.find(marker)
+            if idx >= 0:
+                content = re.sub(r"\s+on\s+(?:my\s+)?tv\b.*$", "", command[idx+len(marker):].strip(), flags=re.I)
+                break
+    return {"target": "tv" if is_tv else "browser", "platform": platform, "content": content, "profile": profile, "action": "launch_app" if not content else "launch_and_search"}
 
+
+def generate_response(user_prompt, session=None):
     global last_response_memory
-
     user_prompt = user_prompt.strip()
+    if not user_prompt: return ("I didn't catch that.", "processing", False, None)
+    visual_mode = determine_visual_mode(user_prompt)
+    media_payload = detect_media_intent(user_prompt)
+    last_memory = session.get("last_response", "") if session else last_response_memory
+    if is_last_response_request(user_prompt):
+        answer = last_memory or "I don't have a previous response stored yet, sir."
+        add_to_memory("user", user_prompt, session); add_to_memory("assistant", answer, session)
+        if session: session["last_response"] = answer
+        else: last_response_memory = answer
+        return (answer, "processing", True, None)
+    answer = ask_groq(user_prompt, session) or ask_gemini(user_prompt, session)
+    if not answer: answer = "I'm unable to reach my language systems at the moment. Please try again shortly."
+    if media_payload:
+        name = media_payload["platform"].replace("_", " ").title()
+        answer = (f"Understood. Preparing {name} on the television, sir." if media_payload["target"] == "tv" else f"Opening {name} here, sir.")
+        if media_payload.get("profile"): answer = f"Understood. Preparing {name} on the television and selecting the requested profile, sir."
+    add_to_memory("user", user_prompt, session); add_to_memory("assistant", answer, session)
+    if session: session["last_response"] = answer
+    else: last_response_memory = answer
+    return (answer, visual_mode, False, media_payload)
 
-    if not user_prompt:
 
-        return (
-            "I didn't catch that.",
-            "processing",
-            False,
-        )
+# ============================================================
+# HTML INTERFACE
+# ============================================================
 
-    visual_mode = determine_visual_mode(
-        user_prompt
-    )
 
-    # --------------------------------------------------------
-    # LAST RESPONSE REQUEST
-    # --------------------------------------------------------
 
-    if is_last_response_request(
-        user_prompt
-    ):
+# ============================================================
+# SECURITY MIDDLEWARE
+# ============================================================
+PUBLIC_PATHS = {"/health"}
 
-        if last_response_memory:
+@app.middleware("http")
+async def sterling_security(request: Request, call_next):
+    if request.url.path in PUBLIC_PATHS:
+        return await call_next(request)
+    if not MASTER_ACCESS_KEY:
+        return JSONResponse({"error": "STERLING_MASTER_KEY is not configured."}, status_code=503)
+    session = _get_session(request)
+    if session:
+        request.state.sterling_session = session
+        return await call_next(request)
+    supplied = request.headers.get("X-STERLING-KEY", "").strip() or request.query_params.get("key", "").strip()
+    access = _access_record(supplied)
+    if not access:
+        return PlainTextResponse("ACCESS DENIED — STERLING COMMAND TOWER", status_code=403)
+    session_id = _new_session(access); request.state.sterling_session = SESSIONS[session_id]
+    if request.url.path == "/":
+        response = RedirectResponse("/", status_code=303)
+    else:
+        response = await call_next(request)
+    response.set_cookie(SESSION_COOKIE, session_id, max_age=SESSION_MAX_AGE, httponly=True, secure=request.url.scheme == "https", samesite="strict", path="/")
+    return response
 
-            answer = last_response_memory
 
-        else:
+# ============================================================
+# ROUTES
+# ============================================================
+@app.get("/", response_class=HTMLResponse)
+async def home():
+    return HTMLResponse(content=ORB_UI_HTML)
 
-            answer = (
-                "I don't have a previous response stored yet, sir."
-            )
+@app.get("/api/chat")
+async def chat(request: Request, prompt: str = Query(..., min_length=1)):
+    session = request.state.sterling_session
+    response, visual_mode, show_text, media_payload = generate_response(prompt, session)
+    return {"sterling_response": response, "visual_mode": visual_mode, "show_text": show_text, "media_payload": media_payload, "system": STERLING_NAME, "designation": STERLING_ACRONYM, "user": session["access"]}
 
-        add_to_memory(
-            "user",
-            user_prompt,
-        )
+@app.post("/api/play-media")
+async def play_media(request: Request):
+    session = request.state.sterling_session
+    payload = await request.json()
+    command = {"type": "TV_MEDIA_COMMAND", "issued_by": session["access"], "target": payload.get("target", "tv"), "platform": payload.get("platform", ""), "content": payload.get("content", ""), "profile": payload.get("profile") or None, "action": payload.get("action", "launch_app"), "timestamp": datetime.utcnow().isoformat()}
+    return {"status": "prepared", "executed": False, "command": command}
 
-        add_to_memory(
-            "assistant",
-            answer,
-        )
+@app.get("/api/status")
+async def status(request: Request):
+    session = request.state.sterling_session
+    return {"status": "online", "system": STERLING_NAME, "designation": STERLING_ACRONYM, "creator": CREATOR_NAME, "active_user": session["access"], "groq_configured": bool(GROQ_API_KEY), "gemini_configured": bool(GEMINI_API_KEY), "gemini_model": GEMINI_MODEL, "conversation_memory": len(session["history"]), "tv_bridge": "not connected"}
 
-        last_response_memory = answer
+@app.get("/health")
+async def health():
+    return {"status": "healthy", "system": STERLING_NAME, "version": "3.6.0"}
 
-        return (
-            answer,
-            "processing",
-            True,
-        )
-
-    # --------------------------------------------------------
-    # NORMAL AI RESPONSE
-    # --------------------------------------------------------
-
-    answer = ask_groq(
-        user_prompt
-    )
-
-    if not answer:
-
-        answer = ask_gemini(
-            user_prompt
-        )
-
-    if not answer:
-
-        answer = (
-            "I'm unable to reach my language systems "
-            "at the moment. Please try again shortly."
-        )
-
-    # Only save conversation after the model has generated
-    # the response. This prevents duplicate user messages.
-    add_to_memory(
-        "user",
-        user_prompt,
-    )
-
-    add_to_memory(
-        "assistant",
-        answer,
-    )
-
-    last_response_memory = answer
-
-    return (
-        answer,
-        visual_mode,
-        False,
-    )
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    if not MASTER_ACCESS_KEY:
+        await websocket.close(code=1013); return
+    session = SESSIONS.get(websocket.cookies.get(SESSION_COOKIE, ""))
+    if not session:
+        access = _access_record(websocket.query_params.get("key", "").strip())
+        if not access:
+            await websocket.close(code=1008); return
+        session = SESSIONS[_new_session(access)]
+    await websocket.accept()
+    try:
+        while True:
+            data = await websocket.receive_text()
+            response, visual_mode, show_text, media_payload = generate_response(data, session)
+            await websocket.send_json({"sterling_response": response, "visual_mode": visual_mode, "show_text": show_text, "media_payload": media_payload, "system": STERLING_NAME, "creator": CREATOR_NAME})
+    except WebSocketDisconnect:
+        pass
+    except Exception as error:
+        print("WebSocket closed:", error)
 
 
 # ============================================================
@@ -3326,6 +3414,10 @@ async function sendCommand(command) {
             answer
         );
 
+        if (data.media_payload) {
+            await handleMediaPayload(data.media_payload);
+        }
+
 
         // Only display if the backend explicitly
         // says the user requested the text.
@@ -3385,14 +3477,7 @@ async function sendCommand(command) {
         speak(
             answer,
             function() {
-
-                /*
-                    The orb returns to standby only
-                    after STERLING finishes speaking.
-                */
-
                 returnToStandby();
-
             }
         );
 
@@ -3424,6 +3509,28 @@ async function sendCommand(command) {
             }
         );
     }
+}
+
+
+async function handleMediaPayload(media) {
+    if (!media) return;
+    if (media.target === "browser") {
+        const q = encodeURIComponent(media.content || "");
+        const urls = {
+            netflix: "https://www.netflix.com/search?q=",
+            youtube: "https://www.youtube.com/results?search_query=",
+            prime_video: "https://www.primevideo.com/search/ref=atv_nb_sr?phrase=",
+            disney_plus: "https://www.disneyplus.com/search?q=",
+            showmax: "https://www.showmax.com/za/search?q=",
+            dstv: "https://www.dstv.com/",
+            spotify: "https://open.spotify.com/search/"
+        };
+        if (urls[media.platform]) window.open(urls[media.platform] + q, "_blank", "noopener");
+        return;
+    }
+    try {
+        await fetch("/api/play-media", {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(media)});
+    } catch (error) { console.error("STERLING TV bridge unavailable:", error); }
 }
 
 
@@ -3935,168 +4042,3 @@ window.addEventListener(
 
 </html>
 """
-
-
-# ============================================================
-# ROUTES
-# ============================================================
-
-@app.get(
-    "/",
-    response_class=HTMLResponse,
-)
-async def home():
-
-    return HTMLResponse(
-        content=ORB_UI_HTML
-    )
-
-
-# ============================================================
-# CHAT API
-# ============================================================
-
-@app.get("/api/chat")
-async def chat(
-    prompt: str = Query(
-        ...,
-        min_length=1,
-    )
-):
-
-    response, visual_mode, show_text = \
-        generate_response(
-            prompt
-        )
-
-    return {
-
-        "sterling_response":
-            response,
-
-        "visual_mode":
-            visual_mode,
-
-        "show_text":
-            show_text,
-
-        "system":
-            "STERLING",
-
-        "designation":
-            STERLING_ACRONYM,
-
-        "creator":
-            CREATOR_NAME,
-    }
-
-
-# ============================================================
-# STATUS
-# ============================================================
-
-@app.get("/api/status")
-async def status():
-
-    return {
-
-        "status":
-            "online",
-
-        "system":
-            "STERLING",
-
-        "designation":
-            STERLING_ACRONYM,
-
-        "creator":
-            CREATOR_NAME,
-
-        "groq_configured":
-            bool(GROQ_API_KEY),
-
-        "gemini_configured":
-            bool(GEMINI_API_KEY),
-
-        "gemini_model":
-            GEMINI_MODEL,
-
-        "conversation_memory":
-            len(conversation_history),
-
-        "last_response_stored":
-            bool(last_response_memory),
-    }
-
-
-# ============================================================
-# HEALTH
-# ============================================================
-
-@app.get("/health")
-async def health():
-
-    return {
-
-        "status":
-            "healthy",
-
-        "system":
-            "STERLING",
-
-        "version":
-            "3.0.0",
-
-    }
-
-
-# ============================================================
-# WEBSOCKET
-# ============================================================
-
-@app.websocket("/ws")
-async def websocket_endpoint(
-    websocket: WebSocket
-):
-
-    await websocket.accept()
-
-    try:
-
-        while True:
-
-            data = await websocket.receive_text()
-
-
-            response, visual_mode, show_text = \
-                generate_response(
-                    data
-                )
-
-
-            await websocket.send_json({
-
-                "sterling_response":
-                    response,
-
-                "visual_mode":
-                    visual_mode,
-
-                "show_text":
-                    show_text,
-
-                "system":
-                    "STERLING",
-
-                "creator":
-                    CREATOR_NAME,
-
-            })
-
-
-    except Exception as error:
-
-        print(
-            "WebSocket closed:",
-            error
-        )
