@@ -17,7 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI(
     title="STERLING Command Tower",
     description="Personal AI command system",
-    version="3.6.0",
+    version="3.8.0",
 )
 
 app.add_middleware(
@@ -949,7 +949,7 @@ async def status(request: Request):
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "system": STERLING_NAME, "version": "3.6.0"}
+    return {"status": "healthy", "system": STERLING_NAME, "version": "3.8.0"}
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
@@ -2527,6 +2527,23 @@ let lastResponse = "";
 
 let responseVisible = false;
 
+// ============================================================
+// AUTHORITATIVE VOICE STATE MACHINE
+// ============================================================
+const VOICE_STATES = Object.freeze({
+    STANDBY: "standby", AWAKENING: "awakening", LISTENING: "listening",
+    PROCESSING: "processing", SPEAKING: "speaking"
+});
+let voiceState = VOICE_STATES.STANDBY;
+let conversationActive = false;
+let conversationTimer = null;
+let bargeRecognition = null;
+let speechGeneration = 0;
+let currentSpeechText = "";
+let lastSpeechStartedAt = 0;
+const CONVERSATION_TIMEOUT_MS = 15000;
+const BARGE_IN_DELAY_MS = 250;
+
 
 // ============================================================
 // ELEMENTS
@@ -2847,6 +2864,7 @@ function scheduleWakeRestart() {
 function startWakeListener() {
 
     if (
+        conversationActive ||
         isProcessing ||
         isSpeaking
     ) {
@@ -2995,38 +3013,21 @@ function startWakeListener() {
 // ============================================================
 
 function activateSterling(command = "") {
-
+    conversationActive = true;
+    clearConversationTimer();
     stopWakeListener();
-
-
-    const greeting =
-        getLocalGreeting();
-
-
-    setState(
-        "speaking",
-        "STERLING ONLINE"
-    );
-
-
-    speak(
-        greeting +
-        " How may I assist you?",
-        function() {
-
-            if (command) {
-
-                sendCommand(
-                    command
-                );
-
-            } else {
-
-                startCommandListener();
-            }
-
-        }
-    );
+    stopCommandRecognition();
+    stopBargeRecognition();
+    voiceState = VOICE_STATES.AWAKENING;
+    setState("speaking", "STERLING ONLINE");
+    systemStatus.textContent = "STERLING AWAKE";
+    const greeting = getLocalGreeting();
+    const opening = command ? greeting : (greeting + " Yes?");
+    speak(opening, function() {
+        if (!conversationActive) return;
+        if (command) sendCommand(command);
+        else startCommandListener();
+    });
 }
 
 
@@ -3034,127 +3035,131 @@ function activateSterling(command = "") {
 // COMMAND LISTENER
 // ============================================================
 
+function clearConversationTimer() {
+    if (conversationTimer) { clearTimeout(conversationTimer); conversationTimer = null; }
+}
+
+function armConversationTimeout() {
+    clearConversationTimer();
+    if (!conversationActive) return;
+    conversationTimer = setTimeout(function() {
+        if (conversationActive && !isProcessing && !isSpeaking) endConversation();
+    }, CONVERSATION_TIMEOUT_MS);
+}
+
+function stopCommandRecognition() {
+    if (!recognition) return;
+    try { recognition.onend = null; recognition.onerror = null; recognition.onresult = null; recognition.abort(); } catch (error) {}
+    recognition = null;
+}
+
+function normaliseSpeech(text) {
+    return (text || "").toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function soundsLikeCurrentSpeech(text) {
+    const heard = normaliseSpeech(text);
+    const spoken = normaliseSpeech(currentSpeechText);
+    if (!heard || !spoken) return false;
+    if (spoken.includes(heard) && heard.split(" ").length >= 2) return true;
+    const heardWords = new Set(heard.split(" "));
+    const spokenWords = spoken.split(" ");
+    const overlap = spokenWords.filter(word => heardWords.has(word)).length;
+    return overlap >= 3 && overlap / Math.max(heardWords.size, 1) >= 0.65;
+}
+
+function stopBargeRecognition() {
+    if (!bargeRecognition) return;
+    try { bargeRecognition.onend = null; bargeRecognition.onerror = null; bargeRecognition.onresult = null; bargeRecognition.abort(); } catch (error) {}
+    bargeRecognition = null;
+}
+
+function startBargeRecognition() {
+    stopBargeRecognition();
+    if (!conversationActive || !isSpeaking) return;
+    const Recognition = getSpeechRecognition();
+    if (!Recognition) return;
+    const instance = new Recognition();
+    instance.lang = "en-US";
+    instance.continuous = true;
+    instance.interimResults = true;
+    instance.maxAlternatives = 1;
+    bargeRecognition = instance;
+    instance.onresult = function(event) {
+        if (!conversationActive || !isSpeaking) return;
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            const result = event.results[i];
+            const transcript = result && result[0] ? result[0].transcript.trim() : "";
+            if (!transcript || soundsLikeCurrentSpeech(transcript)) continue;
+            if (Date.now() - lastSpeechStartedAt < BARGE_IN_DELAY_MS) continue;
+            if (result.isFinal || transcript.split(/\s+/).length >= 2 || /\bst[e]?rling\b/i.test(transcript)) {
+                const command = cleanCommand(transcript);
+                if (!command) continue;
+                speechGeneration++;
+                isSpeaking = false;
+                stopBargeRecognition();
+                if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+                sendCommand(command);
+                return;
+            }
+        }
+    };
+    instance.onerror = function() {};
+    instance.onend = function() {
+        bargeRecognition = null;
+        if (conversationActive && isSpeaking) setTimeout(function() { if (conversationActive && isSpeaking) startBargeRecognition(); }, 120);
+    };
+    try { instance.start(); } catch (error) { bargeRecognition = null; }
+}
+
 function startCommandListener() {
-
+    if (!conversationActive || isProcessing || isSpeaking) return;
     stopWakeListener();
-
-
-    recognition =
-        createRecognition();
-
-
+    stopCommandRecognition();
+    clearConversationTimer();
+    recognition = createRecognition();
     if (!recognition) {
-
-        statusElement.textContent =
-            "VOICE UNSUPPORTED";
-
+        statusElement.textContent = "VOICE UNSUPPORTED";
+        systemStatus.textContent = "USE CHROME OR EDGE";
+        micWarning.style.display = "block";
         return;
     }
-
-
-    setState(
-        "listening",
-        "LISTENING"
-    );
-
-
-    recognition.onresult =
-        function(event) {
-
-            const result =
-                event.results[
-                    event.results.length - 1
-                ];
-
-
-            if (
-                !result ||
-                !result[0]
-            ) {
-
-                return;
-            }
-
-
-            const transcript =
-                result[0]
-                    .transcript
-                    .trim();
-
-
-            const command =
-                cleanCommand(
-                    transcript
-                );
-
-
-            if (!command) {
-
-                returnToStandby();
-
-                return;
-            }
-
-
-            try {
-
-                recognition.stop();
-
-            } catch (error) {}
-
-
-            sendCommand(
-                command
-            );
-        };
-
-
-    recognition.onerror =
-        function(event) {
-
-            if (
-                event.error ===
-                    "not-allowed" ||
-                event.error ===
-                    "service-not-allowed"
-            ) {
-
-                micWarning.style.display =
-                    "block";
-
-                statusElement.textContent =
-                    "ALLOW MICROPHONE ACCESS";
-
-                return;
-            }
-
-
-            returnToStandby();
-        };
-
-
-    recognition.onend =
-        function() {
-
-            if (
-                !isProcessing &&
-                !isSpeaking &&
-                statusElement.textContent ===
-                    "LISTENING"
-            ) {
-
-                returnToStandby();
-            }
-        };
-
-
+    voiceState = VOICE_STATES.LISTENING;
+    setState("listening", "LISTENING");
+    systemStatus.textContent = "STERLING LISTENING";
+    let commandReceived = false;
+    recognition.onresult = function(event) {
+        if (!conversationActive || isProcessing || isSpeaking) return;
+        const result = event.results[event.results.length - 1];
+        if (!result || !result[0]) return;
+        const command = cleanCommand(result[0].transcript.trim());
+        if (!command) return;
+        commandReceived = true;
+        clearConversationTimer();
+        stopCommandRecognition();
+        sendCommand(command);
+    };
+    recognition.onerror = function(event) {
+        if (!conversationActive) return;
+        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+            micWarning.style.display = "block";
+            statusElement.textContent = "ALLOW MICROPHONE ACCESS";
+            return;
+        }
+        if (!isProcessing && !isSpeaking) setTimeout(function() { if (conversationActive && !isProcessing && !isSpeaking) startCommandListener(); }, 150);
+    };
+    recognition.onend = function() {
+        recognition = null;
+        if (!conversationActive || isProcessing || isSpeaking || commandReceived) return;
+        armConversationTimeout();
+        setTimeout(function() { if (conversationActive && !isProcessing && !isSpeaking) startCommandListener(); }, 150);
+    };
     try {
-
         recognition.start();
-
+        armConversationTimeout();
     } catch (error) {
-
-        returnToStandby();
+        recognition = null;
+        setTimeout(function() { if (conversationActive && !isProcessing && !isSpeaking) startCommandListener(); }, 250);
     }
 }
 
@@ -3308,12 +3313,10 @@ function handleLocalCommand(command) {
 
 async function sendCommand(command) {
 
-    if (
-        !command ||
-        isProcessing ||
-        isSpeaking
-    ) {
+    if (!command || isProcessing) return;
 
+    if (isDismissalCommand(command)) {
+        endConversation();
         return;
     }
 
@@ -3474,12 +3477,10 @@ async function sendCommand(command) {
         // SPEAK
         // ----------------------------------------------------
 
-        speak(
-            answer,
-            function() {
-                returnToStandby();
-            }
-        );
+        speak(answer, function() {
+            if (conversationActive) startCommandListener();
+            else returnToStandby();
+        });
 
 
     } catch (error) {
@@ -3797,128 +3798,43 @@ function findMaleVoice(voices) {
 // SPEECH
 // ============================================================
 
-function speak(
-    text,
-    onComplete
-) {
-
-    if (
-        !("speechSynthesis" in window)
-    ) {
-
-        if (onComplete) {
-
-            onComplete();
-        }
-
-        return;
-    }
-
-
-    isSpeaking =
-        true;
-
-
+function speak(text, onComplete) {
+    if (!("speechSynthesis" in window)) { if (onComplete) onComplete(); return; }
+    const myGeneration = ++speechGeneration;
+    currentSpeechText = text || "";
+    lastSpeechStartedAt = Date.now();
+    isSpeaking = true;
+    voiceState = VOICE_STATES.SPEAKING;
     stopWakeListener();
-
-
+    stopCommandRecognition();
+    stopBargeRecognition();
     window.speechSynthesis.cancel();
-
-
-    const utterance =
-        new SpeechSynthesisUtterance(
-            text
-        );
-
-
-    utterance.lang =
-        "en-US";
-
-
-    /*
-        Slightly slower, deeper delivery for
-        the digital-butler character.
-    */
-
-    utterance.rate =
-        0.92;
-
-
-    utterance.pitch =
-        0.78;
-
-
-    utterance.volume =
-        1.0;
-
-
-    const voices =
-        window.speechSynthesis
-            .getVoices();
-
-
-    const selectedVoice =
-        findMaleVoice(
-            voices
-        );
-
-
-    if (selectedVoice) {
-
-        utterance.voice =
-            selectedVoice;
-
-        console.log(
-            "STERLING voice:",
-            selectedVoice.name
-        );
-    }
-
-
-    utterance.onstart =
-        function() {
-
-            setState(
-                "speaking",
-                "SPEAKING"
-            );
-
-            systemStatus.textContent =
-                "STERLING SPEAKING";
-        };
-
-
-    utterance.onend =
-        function() {
-
-            isSpeaking =
-                false;
-
-
-            if (onComplete) {
-
-                onComplete();
-            }
-        };
-
-
-    utterance.onerror =
-        function() {
-
-            isSpeaking =
-                false;
-
-
-            if (onComplete) {
-
-                onComplete();
-            }
-        };
-
-
-    window.speechSynthesis.speak(
-        utterance
-    );
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "en-US";
+    utterance.rate = 0.92;
+    utterance.pitch = 0.78;
+    utterance.volume = 1.0;
+    const selectedVoice = findMaleVoice(window.speechSynthesis.getVoices());
+    if (selectedVoice) utterance.voice = selectedVoice;
+    utterance.onstart = function() {
+        if (myGeneration !== speechGeneration) return;
+        isSpeaking = true;
+        voiceState = VOICE_STATES.SPEAKING;
+        setState("speaking", "SPEAKING");
+        systemStatus.textContent = "STERLING SPEAKING — SAY SOMETHING TO INTERRUPT";
+        setTimeout(function() { if (myGeneration === speechGeneration && isSpeaking) startBargeRecognition(); }, BARGE_IN_DELAY_MS);
+    };
+    utterance.onend = function() {
+        if (myGeneration !== speechGeneration) return;
+        isSpeaking = false; currentSpeechText = ""; stopBargeRecognition();
+        if (onComplete) onComplete();
+    };
+    utterance.onerror = function() {
+        if (myGeneration !== speechGeneration) return;
+        isSpeaking = false; currentSpeechText = ""; stopBargeRecognition();
+        if (onComplete) onComplete();
+    };
+    window.speechSynthesis.speak(utterance);
 }
 
 
@@ -3926,39 +3842,35 @@ function speak(
 // RETURN TO STANDBY
 // ============================================================
 
+function endConversation() {
+    conversationActive = false;
+    clearConversationTimer();
+    isProcessing = false;
+    isSpeaking = false;
+    currentSpeechText = "";
+    speechGeneration++;
+    stopCommandRecognition();
+    stopBargeRecognition();
+    stopWakeListener();
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    systemStatus.textContent = "SYSTEM ONLINE";
+    setState("standby", "STANDBY — SAY STERLING");
+    setTimeout(function() { if (!conversationActive && !isProcessing && !isSpeaking) startWakeListener(); }, 500);
+}
+
+function isDismissalCommand(command) {
+    const text = normaliseSpeech(command);
+    const phrases = ["dismissed", "you are dismissed", "go to standby", "return to standby", "stand by", "standby", "stop listening", "that's all", "that is all", "nothing else", "no more", "goodbye sterling", "goodbye"];
+    return phrases.some(function(phrase) { return text === phrase || text.includes(phrase); });
+}
+
 function returnToStandby() {
-
-    isProcessing =
-        false;
-
-    isSpeaking =
-        false;
-
-
-    systemStatus.textContent =
-        "SYSTEM ONLINE";
-
-
-    setState(
-        "standby",
-        "STANDBY — SAY STERLING"
-    );
-
-
-    setTimeout(
-        function() {
-
-            if (
-                !isProcessing &&
-                !isSpeaking
-            ) {
-
-                startWakeListener();
-            }
-
-        },
-        900
-    );
+    if (conversationActive) {
+        clearConversationTimer();
+        if (!isProcessing && !isSpeaking) startCommandListener();
+        return;
+    }
+    endConversation();
 }
 
 
